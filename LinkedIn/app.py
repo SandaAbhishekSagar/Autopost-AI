@@ -161,5 +161,6 @@ if __name__ == '__main__':
         print("Production mode")
     print("="*60 + "\n")
     
-    app.run(debug=debug, host='0.0.0.0', port=port)
+    # Use 0.0.0.0 to bind to all interfaces (required for Railway)
+    app.run(debug=debug, host='0.0.0.0', port=port, threaded=True)
 

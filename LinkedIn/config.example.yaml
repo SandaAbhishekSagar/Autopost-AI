@@ -1,0 +1,75 @@
+# LinkedIn AI/ML Auto-Poster Configuration Example
+# Copy this file to config.yaml and fill in your details
+
+# Your LinkedIn Profile Information
+profile:
+  name: "Your Name"
+  title: "AI/ML Engineer | Data Scientist"
+  skills:
+    - "Machine Learning"
+    - "Deep Learning"
+    - "Natural Language Processing"
+    - "Computer Vision"
+    - "Python"
+    - "TensorFlow"
+    - "PyTorch"
+  experience_years: 5
+  expertise_areas:
+    - "Neural Networks"
+    - "LLMs"
+    - "AI Research"
+    - "MLOps"
+
+# LinkedIn API Credentials
+linkedin:
+  client_id: "YOUR_LINKEDIN_CLIENT_ID"
+  client_secret: "YOUR_LINKEDIN_CLIENT_SECRET"
+  access_token: "YOUR_ACCESS_TOKEN"
+  # Get these from: https://www.linkedin.com/developers/apps
+
+# AI/ML News Sources
+news:
+  sources:
+    - "https://www.theverge.com/ai-artificial-intelligence"
+    - "https://techcrunch.com/tag/artificial-intelligence/"
+    - "https://venturebeat.com/ai/"
+  rss_feeds:
+    - "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
+    - "https://techcrunch.com/feed/"
+  # Alternative: Use news API (requires API key)
+  use_news_api: false
+  news_api_key: "YOUR_NEWS_API_KEY"  # Optional: Get from https://newsapi.org/
+
+# Post Generation Settings
+post_generation:
+  ai_model: "gpt-4"  # or "gpt-3.5-turbo" for cost savings
+  openai_api_key: "YOUR_OPENAI_API_KEY"
+  tone: "professional"  # professional, engaging, technical
+  max_post_length: 3000  # LinkedIn character limit
+  include_hashtags: true
+  hashtags:
+    - "#AI"
+    - "#MachineLearning"
+    - "#ArtificialIntelligence"
+    - "#TechNews"
+    - "#Innovation"
+
+# Posting Schedule
+schedule:
+  enabled: true
+  frequency: "daily"  # daily, weekly, or custom cron
+  time: "09:00"  # Post time (24-hour format)
+  timezone: "UTC"
+
+# Content Filtering
+content:
+  min_article_age_hours: 0  # Only post articles newer than this
+  max_article_age_hours: 48  # Don't post articles older than this
+  keywords_required:
+    - "AI"
+    - "machine learning"
+    - "artificial intelligence"
+  keywords_excluded:
+    - "crypto"
+    - "bitcoin"
+

@@ -3,7 +3,7 @@ nixPkgs = ["python313", "python313Packages.pip", "python313Packages.setuptools",
 
 [phases.install]
 cmds = [
-  "pip3 install -r requirements.txt"
+  "pip3 install --user -r requirements.txt"
 ]
 
 [phases.build]

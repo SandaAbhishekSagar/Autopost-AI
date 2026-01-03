@@ -44,7 +44,7 @@ class PostGenerator:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a technical AI/ML expert creating highly engaging LinkedIn posts. Write posts in a storytelling format that are both technically deep AND highly engaging. Use eye-catching headings, strategic emojis, and narrative flow. Include specific technologies, frameworks, models, architectures, companies, and technical details. Reference specific AI companies (OpenAI, Anthropic, Google, Meta, Microsoft, etc.), models (GPT-4, Claude, Gemini, Llama, etc.), frameworks (PyTorch, TensorFlow, JAX, etc.), and technical concepts. Be specific about architectures, performance metrics, implementation details, and technical trade-offs. Write for a technical audience but make it captivating and shareable."
+                        "content": "You are a technical AI/ML expert creating highly engaging LinkedIn posts focused on major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.). Write posts in a storytelling format that are both technically deep AND highly engaging. Use eye-catching headings, strategic emojis, and narrative flow. ALWAYS emphasize the specific company (OpenAI, NVIDIA, Google, Microsoft, Meta, etc.) and their products/models (GPT-4, ChatGPT, Sora, H100, A100, Gemini, Claude, Llama, Copilot, etc.). Include specific technologies, frameworks, models, architectures, companies, and technical details. Reference specific AI companies, models, hardware (NVIDIA GPUs, chips), frameworks (PyTorch, TensorFlow, JAX, etc.), and technical concepts. Be specific about architectures, performance metrics, implementation details, and technical trade-offs. Write for a technical audience but make it captivating and shareable. Focus on breaking news and major announcements from these tech giants."
                     },
                     {
                         "role": "user",
@@ -118,7 +118,7 @@ class PostGenerator:
         url = article.get('url', '')
         source = article.get('source', 'Unknown')
         
-        prompt = f"""Create a highly engaging, storytelling-style LinkedIn post about this AI/ML news article that showcases deep technical expertise. The post MUST:
+        prompt = f"""Create a highly engaging, storytelling-style LinkedIn post about this AI/ML news article from major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.) that showcases deep technical expertise. The post MUST:
 
 **FORMAT & STYLE:**
 1. **Eye-Catching Heading**: Start with a compelling, attention-grabbing headline with strategic emojis (1-2 lines max, use 2-3 relevant emojis). IMPORTANT: Use plain text only - NO markdown formatting (no **bold**, no __italic__, no #hashtags in heading). Just use emojis and plain text for emphasis.
@@ -128,14 +128,24 @@ class PostGenerator:
 
 **TECHNICAL CONTENT (Maintain Depth):**
 5. **Technical Depth**: Include specific technical details, architectures, models, frameworks, and methodologies
-6. **Company & Technology References**: Name specific AI companies (OpenAI, Anthropic, Google DeepMind, Meta AI, Microsoft, NVIDIA, etc.), models (GPT-4, Claude, Gemini, Llama, Mistral, etc.), and frameworks (PyTorch, TensorFlow, JAX, HuggingFace, etc.)
-7. **Technical Analysis**: Provide technical insights about:
+6. **Company & Technology References (CRITICAL)**: ALWAYS emphasize the specific tech giant mentioned (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.) and their specific products:
+   - OpenAI: GPT-4, GPT-4 Turbo, ChatGPT, Sora, DALL-E, Whisper, API updates
+   - NVIDIA: H100, A100, GH200, Blackwell, RTX GPUs, CUDA, AI chips, data center GPUs
+   - Google: Gemini, Gemini Pro, DeepMind, AlphaGo, AlphaFold, PaLM, BERT, TensorFlow
+   - Microsoft: Copilot, Azure AI, GPT-4 integration, Bing Chat, Microsoft 365 AI
+   - Meta: Llama 2, Llama 3, OPT, AI research, PyTorch
+   - Apple: CoreML, Neural Engine, Siri improvements, on-device AI
+   - Amazon: Bedrock, Alexa AI, SageMaker, AWS AI services
+   - Anthropic: Claude, Claude 3, Constitutional AI
+   - Other: Tesla Dojo, X.AI Grok, etc.
+7. **Hardware Focus**: If NVIDIA or hardware-related, emphasize GPU performance, chip architecture, compute capabilities, training infrastructure
+8. **Technical Analysis**: Provide technical insights about:
    - Model architectures (transformer variants, attention mechanisms, MoE, etc.)
    - Training methodologies (RLHF, fine-tuning approaches, data pipelines)
    - Performance metrics (benchmarks, efficiency, latency, throughput)
    - Implementation details (scaling, optimization, deployment strategies)
    - Technical trade-offs and comparisons
-8. **Personal Story Integration**: Weave in your experience naturally in storytelling format:
+9. **Personal Story Integration**: Weave in your experience naturally in storytelling format:
    - "In my work with {', '.join(self.profile.get('skills', [])[:3])}..."
    - "Having fine-tuned models like GPT-4 and LLaMA..."
    - "When I deployed YOLOv8 for object detection..."
@@ -175,8 +185,10 @@ CRITICAL INSTRUCTIONS:
 - Use STRATEGIC EMOJIS (5-8 total, relevant to content, spaced naturally throughout)
 - Create an ENGAGING HOOK in the first paragraph that draws readers in
 - Extract EVERY technical detail from the article (model names, companies, frameworks, metrics, architectures)
-- Use exact technical terminology (e.g., "GPT-4 Turbo", "Claude 3 Opus", "Llama 3 70B")
-- Reference real AI companies and technologies
+- Use exact technical terminology (e.g., "GPT-4 Turbo", "Claude 3 Opus", "Llama 3 70B", "NVIDIA H100", "Google Gemini Pro")
+- ALWAYS identify and emphasize which tech giant is involved (OpenAI, NVIDIA, Google, Microsoft, Meta, etc.)
+- Reference real AI companies and technologies with specific product names
+- If NVIDIA-related, emphasize GPU specs, performance metrics, chip architecture, training capabilities
 - Include specific technical metrics if mentioned
 - Weave in your personal experience naturally as part of the story
 - Make it ENGAGING, SHAREABLE, and COMPELLING while maintaining technical depth

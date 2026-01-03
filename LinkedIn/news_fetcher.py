@@ -28,17 +28,18 @@ class NewsFetcher:
         self.max_age_hours = config.get('max_article_age_hours', 48)
 
     def fetch_from_news_api(self) -> List[Dict]:
-        """Fetch news from NewsAPI.org"""
+        """Fetch news from NewsAPI.org - Focus on OpenAI, NVIDIA, and Tech Giants"""
         if not self.news_api_key or not self.use_news_api:
             return []
 
         try:
             url = "https://newsapi.org/v2/everything"
+            # Focus on OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon AI news
             params = {
-                'q': 'AI OR "machine learning" OR "artificial intelligence"',
+                'q': '(OpenAI OR "GPT-4" OR ChatGPT OR Sora OR "NVIDIA" OR "Nvidia" OR "RTX" OR "H100" OR "A100" OR "Google AI" OR Gemini OR "DeepMind" OR "Microsoft AI" OR Copilot OR "Azure AI" OR "Meta AI" OR Llama OR "LLaMA" OR "Apple AI" OR "Amazon AI" OR Bedrock) AND (AI OR "artificial intelligence" OR "machine learning")',
                 'sortBy': 'publishedAt',
                 'language': 'en',
-                'pageSize': 20,
+                'pageSize': 30,
                 'apiKey': self.news_api_key
             }
             
@@ -114,15 +115,37 @@ class NewsFetcher:
             return date_str
 
     def _is_valid_article(self, article: Dict) -> bool:
-        """Check if article meets our criteria"""
+        """Check if article meets our criteria - Focus on tech giants"""
         title = article.get('title', '').lower()
         description = article.get('description', '').lower()
         text = f"{title} {description}"
         
-        # Check required keywords
+        # Tech giants keywords (at least one must be present)
+        tech_giants_keywords = [
+            'openai', 'gpt-4', 'gpt-3', 'chatgpt', 'sora', 'dall-e', 'whisper',
+            'nvidia', 'nvidia', 'rtx', 'h100', 'a100', 'gh200', 'blackwell', 'cuda',
+            'google ai', 'gemini', 'deepmind', 'alphago', 'alphafold', 'palm', 'bert',
+            'microsoft ai', 'copilot', 'azure ai', 'bing chat', 'gpt-4 turbo',
+            'meta ai', 'llama', 'llama 2', 'llama 3', 'opt', 'galactica',
+            'apple ai', 'coreml', 'neural engine', 'siri',
+            'amazon ai', 'bedrock', 'alexa', 'sagemaker',
+            'anthropic', 'claude', 'claude 3',
+            'tesla ai', 'dojo', 'fsd',
+            'x ai', 'grok'
+        ]
+        
+        # Check if article mentions any tech giant
+        has_tech_giant = any(keyword in text for keyword in tech_giants_keywords)
+        
+        # Check required keywords (if specified)
         if self.keywords_required:
-            if not any(keyword.lower() in text for keyword in self.keywords_required):
+            has_required = any(keyword.lower() in text for keyword in self.keywords_required)
+            if not has_required and not has_tech_giant:
                 return False
+        
+        # If no required keywords specified, at least one tech giant must be mentioned
+        if not self.keywords_required and not has_tech_giant:
+            return False
         
         # Check excluded keywords
         if self.keywords_excluded:

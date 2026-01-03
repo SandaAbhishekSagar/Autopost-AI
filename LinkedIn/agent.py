@@ -90,16 +90,21 @@ class LinkedInAIAgent:
             'access_token': linkedin_access_token
         }
         
-        # News sources
+        # News sources - Focus on OpenAI, NVIDIA, and Tech Giants
         config['news'] = {
             'sources': [
                 'https://www.theverge.com/ai-artificial-intelligence',
                 'https://techcrunch.com/tag/artificial-intelligence/',
-                'https://venturebeat.com/ai/'
+                'https://venturebeat.com/ai/',
+                'https://www.theverge.com/tag/openai',
+                'https://www.theverge.com/tag/nvidia'
             ],
             'rss_feeds': [
                 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',
-                'https://techcrunch.com/feed/'
+                'https://techcrunch.com/feed/',
+                'https://www.theverge.com/rss/index.xml',
+                'https://feeds.feedburner.com/venturebeat/SZYF',
+                'https://www.wired.com/feed/rss'
             ],
             'use_news_api': os.environ.get('USE_NEWS_API', 'false').lower() == 'true',
             'news_api_key': os.environ.get('NEWS_API_KEY', '')
@@ -128,11 +133,11 @@ class LinkedInAIAgent:
             'timezone': os.environ.get('SCHEDULE_TIMEZONE', 'UTC')
         }
         
-        # Content filtering
+        # Content filtering - Focus on tech giants
         config['content'] = {
             'min_article_age_hours': int(os.environ.get('MIN_ARTICLE_AGE_HOURS', '0')),
             'max_article_age_hours': int(os.environ.get('MAX_ARTICLE_AGE_HOURS', '48')),
-            'keywords_required': os.environ.get('KEYWORDS_REQUIRED', 'AI,machine learning,artificial intelligence').split(','),
+            'keywords_required': os.environ.get('KEYWORDS_REQUIRED', 'OpenAI,NVIDIA,Google,Microsoft,Meta,Apple,Amazon,Anthropic,GPT-4,ChatGPT,Gemini,Claude,Llama,Copilot').split(','),
             'keywords_excluded': os.environ.get('KEYWORDS_EXCLUDED', 'crypto,bitcoin').split(',')
         }
         

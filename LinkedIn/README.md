@@ -1,12 +1,13 @@
 # LinkedIn AI/ML Auto-Poster Agent
 
-An intelligent agent that automatically creates and posts LinkedIn content about the latest AI/ML news, personalized to highlight your profile, skills, and expertise.
+An intelligent agent that automatically creates and posts LinkedIn content about the latest AI/ML news from major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.), personalized to highlight your profile, skills, and expertise.
 
 ## Features
 
 - 🤖 **AI-Powered Post Generation**: Uses GPT-4/GPT-3.5 to create engaging, personalized LinkedIn posts
-- 📰 **Multi-Source News Fetching**: Aggregates AI/ML news from RSS feeds and NewsAPI
-- 🎯 **Smart Filtering**: Only posts relevant articles matching your criteria
+- 📰 **Multi-Source News Fetching**: Aggregates AI/ML news from RSS feeds and NewsAPI, with focus on tech giants
+- 🎯 **Smart Filtering**: Only posts relevant articles from OpenAI, NVIDIA, Google, Microsoft, Meta, and other major tech companies
+- 🏢 **Tech Giants Focus**: Specifically targets news from OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, and other major AI companies
 - 👤 **Profile Integration**: Automatically incorporates your skills, experience, and expertise into posts
 - ⏰ **Scheduling Support**: Can be scheduled to run automatically
 - 🔒 **Safe Testing**: Dry-run mode to preview posts before posting

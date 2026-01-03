@@ -353,6 +353,48 @@
             posts.forEach((post, index) => {
                 const card = document.createElement('div');
                 card.className = 'post-card';
+                
+                // Build scoring HTML if available
+                let scoringHTML = '';
+                if (post.scoring) {
+                    const score = post.scoring.score;
+                    const percentage = post.scoring.percentage;
+                    const priority = post.scoring.priority;
+                    const recommendation = post.scoring.recommendation;
+                    const reasons = post.scoring.reasons || [];
+                    
+                    // Determine color based on score
+                    let scoreColor = '#ef4444'; // red
+                    if (score >= 60) scoreColor = '#10b981'; // green
+                    else if (score >= 40) scoreColor = '#f59e0b'; // yellow
+                    
+                    scoringHTML = `
+                        <div class="scoring-section" style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid ${scoreColor};">
+                            <h4 style="margin: 0 0 10px 0; color: #1f2937;">📊 Value Scoring</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                                <div>
+                                    <strong style="color: ${scoreColor}; font-size: 24px;">${score}/110</strong>
+                                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">${percentage}% Score</p>
+                                </div>
+                                <div>
+                                    <strong style="color: #1f2937;">Priority:</strong>
+                                    <p style="margin: 5px 0 0 0; color: #6b7280;">${priority}</p>
+                                </div>
+                                <div>
+                                    <strong style="color: #1f2937;">Recommendation:</strong>
+                                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 13px;">${recommendation}</p>
+                                </div>
+                            </div>
+                            ${reasons.length > 0 ? `
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+                                    <strong style="color: #1f2937; font-size: 13px;">Why:</strong>
+                                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 12px;">${reasons.slice(0, 3).join(' • ')}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+                
                 card.innerHTML = `
                     <div class="post-header">
                         <div class="article-info">
@@ -361,6 +403,7 @@
                             ${post.article.url ? `<p><a href="${post.article.url}" target="_blank">View Article</a></p>` : ''}
                         </div>
                     </div>
+                    ${scoringHTML}
                     <div class="post-content">${escapeHtml(post.content)}</div>
                     <div class="post-actions">
                         <button class="btn btn-success btn-small" onclick="postToLinkedIn(${index}, ${JSON.stringify(post).replace(/"/g, '&quot;')})">

@@ -302,7 +302,20 @@ class LinkedInAIAgent:
         
         previews = []
         
-        for article in articles:
+        for i, article in enumerate(articles, 1):
+            # Show scoring for each article before generating post
+            if self.news_scorer and article.get('value_score') is not None:
+                score = article.get('value_score', 0)
+                percentage = article.get('value_percentage', 0)
+                priority = article.get('value_priority', 'UNKNOWN')
+                recommendation = article.get('value_recommendation', '')
+                title = article.get('title', 'Unknown')[:70]
+                
+                print(f"\n📝 Generating Post {i}/{len(articles)}")
+                print(f"   Article: {title}...")
+                print(f"   📊 Value Score: {score}/110 ({percentage}%) | Priority: {priority}")
+                print(f"   💡 Recommendation: {recommendation}")
+            
             post_content = self.post_generator.generate_post(article)
             previews.append({
                 'article': article,
@@ -343,12 +356,28 @@ def main():
         previews = agent.preview_posts(num_posts=args.preview)
         for i, preview in enumerate(previews, 1):
             try:
+                article = preview['article']
                 print(f"\n{'='*80}")
                 print(f"PREVIEW {i}/{len(previews)}")
                 print(f"{'='*80}")
-                print(f"Article: {preview['article'].get('title', 'Unknown')}")
-                print(f"Source: {preview['article'].get('source', 'Unknown')}")
-                print(f"URL: {preview['article'].get('url', 'N/A')}")
+                print(f"Article: {article.get('title', 'Unknown')}")
+                print(f"Source: {article.get('source', 'Unknown')}")
+                print(f"URL: {article.get('url', 'N/A')}")
+                
+                # Display value scoring if available
+                if agent.news_scorer and article.get('value_score') is not None:
+                    score = article.get('value_score', 0)
+                    percentage = article.get('value_percentage', 0)
+                    priority = article.get('value_priority', 'UNKNOWN')
+                    recommendation = article.get('value_recommendation', '')
+                    print(f"\n📊 VALUE SCORING:")
+                    print(f"   Score: {score}/110 ({percentage}%)")
+                    print(f"   Priority: {priority}")
+                    print(f"   Recommendation: {recommendation}")
+                    if article.get('value_reasons'):
+                        reasons = article.get('value_reasons', [])
+                        print(f"   Why: {', '.join(reasons[:3])}")
+                
                 print(f"\nGenerated Post:\n{preview['post']}")
                 print(f"{'='*80}\n")
             except UnicodeEncodeError:

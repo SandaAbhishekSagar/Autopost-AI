@@ -52,15 +52,28 @@ def generate_post():
         # Format response
         posts = []
         for preview in previews:
-            posts.append({
+            article = preview['article']
+            post_data = {
                 'article': {
-                    'title': preview['article'].get('title', 'Unknown'),
-                    'source': preview['article'].get('source', 'Unknown'),
-                    'url': preview['article'].get('url', ''),
-                    'description': preview['article'].get('description', '')
+                    'title': article.get('title', 'Unknown'),
+                    'source': article.get('source', 'Unknown'),
+                    'url': article.get('url', ''),
+                    'description': article.get('description', '')
                 },
                 'content': preview['post']
-            })
+            }
+            
+            # Add value scoring if available
+            if article.get('value_score') is not None:
+                post_data['scoring'] = {
+                    'score': article.get('value_score', 0),
+                    'percentage': article.get('value_percentage', 0),
+                    'priority': article.get('value_priority', 'UNKNOWN'),
+                    'recommendation': article.get('value_recommendation', ''),
+                    'reasons': article.get('value_reasons', [])
+                }
+            
+            posts.append(post_data)
         
         return jsonify({
             'success': True,

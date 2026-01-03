@@ -19,6 +19,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+try:
+    from news_scorer import NewsScorer
+    NEWS_SCORER_AVAILABLE = True
+except ImportError:
+    NEWS_SCORER_AVAILABLE = False
+    # Logger is defined above, so this is safe
+    pass  # Will log warning in __init__ if needed
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 class LinkedInAIAgent:
     def __init__(self, config_path: str = "config.yaml"):
@@ -27,6 +41,12 @@ class LinkedInAIAgent:
         self.news_fetcher = NewsFetcher(self.config.get('news', {}))
         self.post_generator = PostGenerator(self.config)
         self.linkedin_poster = LinkedInPoster(self.config.get('linkedin', {}))
+        if NEWS_SCORER_AVAILABLE:
+            self.news_scorer = NewsScorer()
+            logger.info("News value scoring enabled - posting frequency recommendations available")
+        else:
+            self.news_scorer = None
+            logger.warning("NewsScorer not available - posting frequency recommendations disabled")
         
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration from YAML file or environment variables"""
@@ -156,9 +176,10 @@ class LinkedInAIAgent:
         logger.info("Starting LinkedIn AI/ML Auto-Poster Agent...")
         
         try:
-            # Step 1: Fetch latest news
+            # Step 1: Fetch latest news (ranked by value if scorer available)
             logger.info("Fetching latest AI/ML news...")
-            articles = self.news_fetcher.get_latest_news(limit=5)
+            rank_by_value = self.news_scorer is not None
+            articles = self.news_fetcher.get_latest_news(limit=10, rank_by_value=rank_by_value)
             
             if not articles:
                 logger.warning("No articles found matching criteria")
@@ -166,9 +187,17 @@ class LinkedInAIAgent:
             
             logger.info(f"Found {len(articles)} relevant articles")
             
-            # Step 2: Generate post for the most recent article
-            article = articles[0]  # Get the most recent one
-            logger.info(f"Generating post for: {article.get('title', 'Unknown')}")
+            # Step 1.5: Analyze news value and provide posting frequency recommendation
+            if self.news_scorer:
+                self._display_news_analysis(articles)
+            
+            # Step 2: Generate post for the highest value article (or most recent if no scorer)
+            article = articles[0]  # Get the highest value one (or most recent)
+            article_title = article.get('title', 'Unknown')
+            if self.news_scorer and article.get('value_score'):
+                logger.info(f"Generating post for top article: {article_title} (Score: {article.get('value_score')}/110)")
+            else:
+                logger.info(f"Generating post for: {article_title}")
             
             post_content = self.post_generator.generate_post(article)
             logger.info("Post generated successfully")
@@ -212,19 +241,65 @@ class LinkedInAIAgent:
             logger.error(f"Error in agent execution: {e}", exc_info=True)
             return False
 
+    def _display_news_analysis(self, articles: List[Dict]) -> None:
+        """Display news value analysis and posting frequency recommendations"""
+        if not self.news_scorer or not articles:
+            return
+        
+        try:
+            # Get posting frequency recommendation
+            freq_recommendation = self.news_scorer.get_posting_frequency_recommendation(articles)
+            
+            print("\n" + "="*80)
+            print("📊 NEWS VALUE ANALYSIS & POSTING RECOMMENDATIONS")
+            print("="*80)
+            print(f"\n🎯 Recommended Posting Frequency: {freq_recommendation['recommended_frequency']}")
+            print(f"💡 Reason: {freq_recommendation['reason']}")
+            print(f"\n📈 News Quality Breakdown:")
+            print(f"   • High-value articles (score ≥60): {freq_recommendation['high_value_count']}")
+            print(f"   • Medium-value articles (score 40-59): {freq_recommendation['medium_value_count']}")
+            print(f"   • Low-value articles (score <40): {freq_recommendation['low_value_count']}")
+            
+            # Show top articles
+            if freq_recommendation.get('top_articles'):
+                print(f"\n🏆 Top {len(freq_recommendation['top_articles'])} Articles by Value:")
+                for i, article in enumerate(freq_recommendation['top_articles'], 1):
+                    score = article.get('value_score', 0)
+                    percentage = article.get('value_percentage', 0)
+                    priority = article.get('value_priority', 'UNKNOWN')
+                    recommendation = article.get('value_recommendation', '')
+                    title = article.get('title', 'Unknown')[:60]
+                    print(f"\n   {i}. {title}...")
+                    print(f"      Score: {score}/110 ({percentage}%) | Priority: {priority}")
+                    print(f"      Recommendation: {recommendation}")
+                    if article.get('value_reasons'):
+                        reasons = article.get('value_reasons', [])[:2]
+                        print(f"      Why: {', '.join(reasons)}")
+            
+            print("\n" + "="*80 + "\n")
+        except Exception as e:
+            logger.warning(f"Error displaying news analysis: {e}")
+    
     def preview_posts(self, num_posts: int = 3) -> List[Dict]:
         """
         Preview multiple posts without posting
         
         Args:
             num_posts: Number of posts to preview
-        
+            
         Returns:
             List of dictionaries with article and post content
         """
         logger.info(f"Generating preview for {num_posts} posts...")
         
-        articles = self.news_fetcher.get_latest_news(limit=num_posts)
+        # Get articles ranked by value
+        rank_by_value = self.news_scorer is not None
+        articles = self.news_fetcher.get_latest_news(limit=num_posts, rank_by_value=rank_by_value)
+        
+        # Display analysis if scorer available
+        if self.news_scorer:
+            self._display_news_analysis(articles)
+        
         previews = []
         
         for article in articles:

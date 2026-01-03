@@ -8,6 +8,8 @@ An intelligent agent that automatically creates and posts LinkedIn content about
 - 📰 **Multi-Source News Fetching**: Aggregates AI/ML news from RSS feeds and NewsAPI, with focus on tech giants
 - 🎯 **Smart Filtering**: Only posts relevant articles from OpenAI, NVIDIA, Google, Microsoft, Meta, and other major tech companies
 - 🏢 **Tech Giants Focus**: Specifically targets news from OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, and other major AI companies
+- 📊 **News Value Scoring**: Automatically scores and ranks articles by value to identify the best content to post
+- ⏰ **Posting Frequency Recommendations**: Suggests optimal posting frequency based on news quality
 - 👤 **Profile Integration**: Automatically incorporates your skills, experience, and expertise into posts
 - ⏰ **Scheduling Support**: Can be scheduled to run automatically
 - 🔒 **Safe Testing**: Dry-run mode to preview posts before posting
@@ -195,6 +197,18 @@ What are your thoughts on this? Let's discuss in the comments!
 
 - **No Articles Found**: Adjust your keywords or expand your news sources.
 - **RSS Feed Errors**: Some feeds may be temporarily unavailable. The agent will skip them.
+
+## 📋 LinkedIn Posting Checklist
+
+For a comprehensive checklist on how to post effectively on LinkedIn and maximize engagement, see **[LINKEDIN_POSTING_CHECKLIST.md](LINKEDIN_POSTING_CHECKLIST.md)**.
+
+This checklist covers:
+- Pre-post content quality checks
+- Optimal posting times and frequency
+- Hashtag strategy
+- Post-engagement tactics
+- Common mistakes to avoid
+- Analytics and optimization tips
 
 ## Security Notes
 

@@ -133,16 +133,28 @@ class PostGenerator:
         
         prompt = f"""Create a professional, long-form LinkedIn post (800-2000 characters, excluding hashtags) about this AI/ML news from major tech giants. Write like a professional tech content creator - authoritative, insightful, and valuable.
 
+**CRITICAL: FIRST 2 LINES ARE EVERYTHING**
+LinkedIn only shows the first 2 lines in the feed. If those don't grab attention, people will scroll past. Make them count!
+
 **MANDATORY STRUCTURE (Follow this exact format with white space between sections):**
 
-1. **COMPELLING HEADLINE (1-2 lines)**
-   - Eye-catching, curiosity-driven headline
-   - Use 1-2 strategic emojis maximum
+1. **COMPELLING HEADLINE (EXACTLY 2 LINES - MOST CRITICAL!)**
+   - Line 1: Curiosity-driven, attention-grabbing hook that makes people stop scrolling
+   - Line 2: Continue the hook or add context that builds intrigue
+   - Use 1-2 strategic emojis maximum (one in first line recommended)
    - NO markdown formatting (no **bold**, __italic__)
-   - Examples: "This NVIDIA announcement changes everything for AI training" or "OpenAI just dropped something that will reshape how we build AI apps"
+   - Must be curiosity-driven, not generic
+   - Examples of GOOD hooks:
+     * "This NVIDIA announcement changes everything for AI training. Here's why it matters..."
+     * "OpenAI just dropped something that will reshape how we build AI apps. Most people missed this detail..."
+     * "Everyone's talking about this AI release, but here's what actually matters for developers..."
+   - Examples of BAD hooks (avoid these):
+     * "Good morning LinkedIn!"
+     * "Check out this news about AI"
+     * "Interesting development in AI/ML"
    - Add blank line after
 
-2. **THE NEWS - DETAILED BREAKDOWN (4-6 lines)**
+2. **THE NEWS - DETAILED BREAKDOWN (4-6 lines, 2-4 lines per paragraph)**
    - What actually happened? Provide comprehensive context
    - Who is involved? (Company, product, team)
    - What are the key details? (Specs, metrics, features, numbers)
@@ -150,9 +162,10 @@ class PostGenerator:
    - Why is this significant? (Context and background)
    - Extract ALL technical details from the article
    - Use specific product names: GPT-4 Turbo, NVIDIA H100, Google Gemini Pro, etc.
+   - Keep paragraphs short (2-4 lines max) for readability
    - Add blank line after
 
-3. **WHY THIS MATTERS - DEEP ANALYSIS (5-8 lines)**
+3. **WHY THIS MATTERS - DEEP ANALYSIS (5-8 lines, 2-4 lines per paragraph)**
    - Industry implications: How does this affect the AI/ML landscape?
    - Technical significance: What's the technical breakthrough or innovation?
    - Market impact: Who benefits? What problems does this solve?
@@ -160,15 +173,17 @@ class PostGenerator:
    - Real-world applications: Where and how will this be used?
    - Future implications: What does this enable next?
    - Provide YOUR professional analysis, not just restating the news
+   - Keep paragraphs short (2-4 lines max) - no walls of text
    - Add blank line after
 
-4. **TECHNICAL DEEP DIVE (4-6 lines)**
+4. **TECHNICAL DEEP DIVE (4-6 lines, 2-4 lines per paragraph)**
    - Architecture details: How does it work technically?
    - Performance metrics: Benchmarks, speed, efficiency, scale
    - Technical innovations: What's new or different?
    - Implementation considerations: What does it take to use this?
    - Trade-offs: What are the limitations or considerations?
    - Reference frameworks, models, hardware specifics
+   - Keep paragraphs short (2-4 lines max) for easy scanning
    - Add blank line after
 
 5. **PERSONAL INSIGHT / EXPERIENCE (3-5 lines)**
@@ -176,7 +191,9 @@ class PostGenerator:
    - Share relevant insights from your expertise
    - How would you use this? What would you build?
    - What challenges have you faced that this addresses?
-   - Sound authentic and personal, not corporate
+   - Sound authentic and personal, NOT like ChatGPT or corporate marketing
+   - Use first-person language naturally: "I think...", "I've found...", "In my experience..."
+   - Avoid generic phrases - be specific about your experience
    - Add blank line after
 
 6. **CALL TO ACTION (1-2 lines)**
@@ -195,25 +212,30 @@ class PostGenerator:
 - Anthropic: Claude, Claude 3 (Opus/Sonnet/Haiku), Constitutional AI, safety research
 - Others: Tesla Dojo, X.AI Grok, Mistral AI, Cohere, etc.
 
-**WRITING REQUIREMENTS:**
+**WRITING REQUIREMENTS (ALIGNED WITH LINKEDIN BEST PRACTICES):**
 - MINIMUM LENGTH: 800 characters (excluding hashtags) - make it substantial!
 - TARGET LENGTH: 1200-1800 characters for optimal engagement
 - MAXIMUM LENGTH: {self.max_length} characters
-- Use strategic emojis: 3-5 total, spaced naturally (🤖 🚀 💡 🔥 ⚡ 🎯 🧠 💻)
+- FIRST 2 LINES: Must be curiosity-driven and attention-grabbing (LinkedIn only shows these in feed!)
+- Use strategic emojis: 3-5 total MAXIMUM, spaced naturally (🤖 🚀 💡 🔥 ⚡ 🎯 🧠 💻)
+- Paragraph length: 2-4 lines maximum per paragraph (no walls of text)
+- White space: Blank line between each major section for readability
 - Professional tone: Authoritative but accessible, educational but engaging
-- NO markdown formatting anywhere (LinkedIn doesn't support it)
-- Use white space between sections for readability
+- Authentic voice: Sound like a real person, NOT ChatGPT or corporate marketing
+- NO markdown formatting anywhere (LinkedIn doesn't support it - will show as literal text)
 - Write in first person when sharing personal insights
 - Be specific: Use exact product names, metrics, and technical terms
-- Provide value: Teach, explain, analyze - don't just summarize
+- Provide value: Teach, explain, analyze - don't just summarize or restate the news
+- Easy to scan: Break up text, use short paragraphs, make it readable
 
 **TONE & STYLE:**
-- Professional tech content creator voice
-- Authoritative and knowledgeable
-- Educational and valuable
-- Engaging but not overly casual
-- Technical depth without being inaccessible
-- Thought leadership quality
+- Professional tech content creator voice (authoritative but approachable)
+- Educational and valuable (teach, don't just inform)
+- Engaging but not overly casual (maintain professionalism)
+- Technical depth without being inaccessible (explain complex concepts simply)
+- Thought leadership quality (provide unique insights, not generic summaries)
+- Authentic human voice (sound like you're talking to a colleague, not giving a presentation)
+- Value-first approach (every sentence should add value, not just fill space)
 
 Your Profile Information:
 {profile_context}
@@ -224,16 +246,31 @@ Description: {description}
 Source: {source}
 URL: {url}
 
-**CRITICAL:**
-- Follow the EXACT 6-section structure above
-- Each section must be FULLY DEVELOPED (not 1-2 sentences)
-- MINIMUM 800 characters (excluding hashtags)
-- Extract and include ALL technical details from the article
-- Emphasize the specific tech giant and their products
-- Provide deep analysis, not surface-level summary
-- Use white space between sections
-- NO markdown formatting anywhere
-- Write like a professional tech content creator, not a generic AI
+**CRITICAL CHECKLIST (MUST FOLLOW ALL):**
+- ✅ FIRST 2 LINES: Curiosity-driven hook that stops scrolling (LinkedIn only shows these!)
+- ✅ Follow the EXACT 6-section structure above
+- ✅ Each section must be FULLY DEVELOPED (not 1-2 sentences)
+- ✅ MINIMUM 800 characters (excluding hashtags)
+- ✅ Paragraphs: 2-4 lines maximum (no walls of text)
+- ✅ White space: Blank line between each section
+- ✅ Extract and include ALL technical details from the article
+- ✅ Emphasize the specific tech giant and their products
+- ✅ Provide deep analysis, not surface-level summary
+- ✅ Authentic voice: Sound like a real person, not ChatGPT
+- ✅ Value-first: Every section should teach or provide insight
+- ✅ Strategic emojis: 3-5 total maximum, spaced naturally
+- ✅ NO markdown formatting anywhere (LinkedIn doesn't support it)
+- ✅ Engaging question: End with thought-provoking CTA
+- ✅ Easy to scan: Short paragraphs, clear sections, readable format
+
+**AVOID:**
+- ❌ Generic hooks like "Good morning LinkedIn" or "Check out this news"
+- ❌ Long paragraphs (more than 4 lines)
+- ❌ Walls of text without breaks
+- ❌ Corporate marketing speak
+- ❌ Just summarizing the news without adding value
+- ❌ Too many emojis (more than 5)
+- ❌ Markdown formatting (will show as literal text)
 
 Write the complete LinkedIn post now following the structure above. Do not include the URL in the post text."""
 

@@ -170,8 +170,17 @@ class NewsFetcher:
         
         return True
 
-    def get_latest_news(self, limit: int = 5) -> List[Dict]:
-        """Get latest news from all sources"""
+    def get_latest_news(self, limit: int = 5, rank_by_value: bool = False) -> List[Dict]:
+        """
+        Get latest news from all sources
+        
+        Args:
+            limit: Maximum number of articles to return
+            rank_by_value: If True, rank articles by value score (requires news_scorer)
+        
+        Returns:
+            List of article dictionaries, optionally ranked by value
+        """
         all_articles = []
         
         if self.use_news_api:
@@ -188,8 +197,18 @@ class NewsFetcher:
                 seen_urls.add(url)
                 unique_articles.append(article)
         
-        # Sort by date (newest first)
-        unique_articles.sort(key=lambda x: x.get('published_at', ''), reverse=True)
+        # If ranking by value, use NewsScorer
+        if rank_by_value:
+            try:
+                from news_scorer import NewsScorer
+                scorer = NewsScorer()
+                unique_articles = scorer.rank_articles(unique_articles)
+            except ImportError:
+                logger.warning("news_scorer not available, sorting by date instead")
+                unique_articles.sort(key=lambda x: x.get('published_at', ''), reverse=True)
+        else:
+            # Sort by date (newest first)
+            unique_articles.sort(key=lambda x: x.get('published_at', ''), reverse=True)
         
         return unique_articles[:limit]
 

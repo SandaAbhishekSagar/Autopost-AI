@@ -117,10 +117,10 @@ class LinkedInAIAgent:
             return None
         
         config['post_generation'] = {
-            'ai_model': os.environ.get('OPENAI_MODEL', 'gpt-4'),
+            'ai_model': os.environ.get('OPENAI_MODEL', 'gpt-4'),  # gpt-4 recommended for longer, professional posts
             'openai_api_key': openai_api_key,
             'tone': os.environ.get('POST_TONE', 'professional'),
-            'max_post_length': int(os.environ.get('MAX_POST_LENGTH', '3000')),
+            'max_post_length': int(os.environ.get('MAX_POST_LENGTH', '3000')),  # Posts will be 800-2000 chars for professional quality
             'include_hashtags': os.environ.get('INCLUDE_HASHTAGS', 'true').lower() == 'true',
             'hashtags': os.environ.get('HASHTAGS', '#AI,#MachineLearning,#ArtificialIntelligence,#TechNews').split(',')
         }

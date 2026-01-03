@@ -47,10 +47,10 @@ news:
 
 # Post Generation Settings
 post_generation:
-  ai_model: "gpt-4"  # or "gpt-3.5-turbo" for cost savings
+  ai_model: "gpt-4"  # or "gpt-3.5-turbo" for cost savings (gpt-4 recommended for longer, better posts)
   openai_api_key: "YOUR_OPENAI_API_KEY"
   tone: "professional"  # professional, engaging, technical
-  max_post_length: 3000  # LinkedIn character limit
+  max_post_length: 3000  # LinkedIn character limit (posts will be 800-2000 chars for professional quality)
   include_hashtags: true
   hashtags:
     - "#AI"

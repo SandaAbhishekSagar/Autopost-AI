@@ -44,22 +44,35 @@ class PostGenerator:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a technical AI/ML expert creating highly engaging LinkedIn posts focused on major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.). Write posts in a storytelling format that are both technically deep AND highly engaging. Use eye-catching headings, strategic emojis, and narrative flow. ALWAYS emphasize the specific company (OpenAI, NVIDIA, Google, Microsoft, Meta, etc.) and their products/models (GPT-4, ChatGPT, Sora, H100, A100, Gemini, Claude, Llama, Copilot, etc.). Include specific technologies, frameworks, models, architectures, companies, and technical details. Reference specific AI companies, models, hardware (NVIDIA GPUs, chips), frameworks (PyTorch, TensorFlow, JAX, etc.), and technical concepts. Be specific about architectures, performance metrics, implementation details, and technical trade-offs. Write for a technical audience but make it captivating and shareable. Focus on breaking news and major announcements from these tech giants."
+                        "content": "You are a professional tech content creator and AI/ML expert with deep industry knowledge. You create long-form, highly valuable LinkedIn posts (800-2000 characters) that professionals actually want to read and share. Your posts are authoritative, insightful, and provide real value - not generic summaries. You write like a thought leader who breaks down complex tech news in an accessible yet deep way. You focus on major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.) and their products. Your writing style is professional, engaging, and educational - you teach while you inform. You use strategic emojis sparingly (3-5 total) and structure posts for maximum readability with clear sections and white space."
                     },
                     {
                         "role": "user",
                         "content": prompt
                     }
                 ],
-                temperature=0.7,
-                max_tokens=1200  # Increased for more technical detail
+                temperature=0.75,
+                max_tokens=2500  # Significantly increased for long-form professional content
             )
             
             post_content = response.choices[0].message.content.strip()
             
-            # Add hashtags if enabled
+            # Check minimum length and warn if too short
+            min_length = 800
+            post_without_hashtags = post_content
             if self.include_hashtags and self.hashtags:
-                hashtag_string = " ".join(self.hashtags)
+                # Remove hashtags for length check
+                for tag in self.hashtags:
+                    post_without_hashtags = post_without_hashtags.replace(tag, '')
+            
+            if len(post_without_hashtags.strip()) < min_length:
+                logger.warning(f"Generated post is shorter than recommended minimum ({len(post_without_hashtags)} chars). Minimum recommended: {min_length} chars for professional content.")
+            
+            # Add hashtags if enabled (limit to 5-7 most relevant)
+            if self.include_hashtags and self.hashtags:
+                # Limit hashtags to avoid clutter
+                limited_hashtags = self.hashtags[:7] if len(self.hashtags) > 7 else self.hashtags
+                hashtag_string = " ".join(limited_hashtags)
                 post_content = f"{post_content}\n\n{hashtag_string}"
             
             # Ensure length is within limits
@@ -118,56 +131,89 @@ class PostGenerator:
         url = article.get('url', '')
         source = article.get('source', 'Unknown')
         
-        prompt = f"""Create a highly engaging, storytelling-style LinkedIn post about this AI/ML news article from major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.) that showcases deep technical expertise. The post MUST:
+        prompt = f"""Create a professional, long-form LinkedIn post (800-2000 characters, excluding hashtags) about this AI/ML news from major tech giants. Write like a professional tech content creator - authoritative, insightful, and valuable.
 
-**FORMAT & STYLE:**
-1. **Eye-Catching Heading**: Start with a compelling, attention-grabbing headline with strategic emojis (1-2 lines max, use 2-3 relevant emojis). IMPORTANT: Use plain text only - NO markdown formatting (no **bold**, no __italic__, no #hashtags in heading). Just use emojis and plain text for emphasis.
-2. **Storytelling Format**: Write in a narrative, engaging style - tell a story with a beginning, middle, and end. Use phrases like "Let me share what caught my attention...", "Here's what's fascinating...", "This reminded me of when I..."
-3. **Strategic Emojis**: Use 5-8 relevant emojis throughout (🤖 🚀 💡 🔥 ⚡ 🎯 🧠 💻 🔬 📊 🎨 but don't overuse - space them naturally)
-4. **Engaging Hook**: First paragraph after heading should immediately capture attention with a personal connection or intriguing question
+**MANDATORY STRUCTURE (Follow this exact format with white space between sections):**
 
-**TECHNICAL CONTENT (Maintain Depth):**
-5. **Technical Depth**: Include specific technical details, architectures, models, frameworks, and methodologies
-6. **Company & Technology References (CRITICAL)**: ALWAYS emphasize the specific tech giant mentioned (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.) and their specific products:
-   - OpenAI: GPT-4, GPT-4 Turbo, ChatGPT, Sora, DALL-E, Whisper, API updates
-   - NVIDIA: H100, A100, GH200, Blackwell, RTX GPUs, CUDA, AI chips, data center GPUs
-   - Google: Gemini, Gemini Pro, DeepMind, AlphaGo, AlphaFold, PaLM, BERT, TensorFlow
-   - Microsoft: Copilot, Azure AI, GPT-4 integration, Bing Chat, Microsoft 365 AI
-   - Meta: Llama 2, Llama 3, OPT, AI research, PyTorch
-   - Apple: CoreML, Neural Engine, Siri improvements, on-device AI
-   - Amazon: Bedrock, Alexa AI, SageMaker, AWS AI services
-   - Anthropic: Claude, Claude 3, Constitutional AI
-   - Other: Tesla Dojo, X.AI Grok, etc.
-7. **Hardware Focus**: If NVIDIA or hardware-related, emphasize GPU performance, chip architecture, compute capabilities, training infrastructure
-8. **Technical Analysis**: Provide technical insights about:
-   - Model architectures (transformer variants, attention mechanisms, MoE, etc.)
-   - Training methodologies (RLHF, fine-tuning approaches, data pipelines)
-   - Performance metrics (benchmarks, efficiency, latency, throughput)
-   - Implementation details (scaling, optimization, deployment strategies)
-   - Technical trade-offs and comparisons
-9. **Personal Story Integration**: Weave in your experience naturally in storytelling format:
-   - "In my work with {', '.join(self.profile.get('skills', [])[:3])}..."
-   - "Having fine-tuned models like GPT-4 and LLaMA..."
-   - "When I deployed YOLOv8 for object detection..."
-   - Share a brief, relevant technical challenge or insight from your experience as a story
-9. **Technical Perspective**: Share your professional technical opinion on implications
-10. **Strong Call-to-Action**: End with an engaging question that invites discussion
+1. **COMPELLING HEADLINE (1-2 lines)**
+   - Eye-catching, curiosity-driven headline
+   - Use 1-2 strategic emojis maximum
+   - NO markdown formatting (no **bold**, __italic__)
+   - Examples: "This NVIDIA announcement changes everything for AI training" or "OpenAI just dropped something that will reshape how we build AI apps"
+   - Add blank line after
 
-**STRUCTURE:**
-- Eye-catching heading with emoji (1-2 lines)
-- Engaging opening paragraph (hook with personal connection)
-- Technical deep-dive with storytelling elements (narrative flow)
-- Personal connection/experience (weaved into the story)
-- Technical implications and insights
-- Engaging question/CTA
+2. **THE NEWS - DETAILED BREAKDOWN (4-6 lines)**
+   - What actually happened? Provide comprehensive context
+   - Who is involved? (Company, product, team)
+   - What are the key details? (Specs, metrics, features, numbers)
+   - When did this happen? (Timeline, release date)
+   - Why is this significant? (Context and background)
+   - Extract ALL technical details from the article
+   - Use specific product names: GPT-4 Turbo, NVIDIA H100, Google Gemini Pro, etc.
+   - Add blank line after
 
-**TONE:**
-- Engaging, conversational, storytelling style
-- Professional yet approachable and exciting
-- Technically accurate but shareable
-- Make readers feel like they're learning something fascinating
+3. **WHY THIS MATTERS - DEEP ANALYSIS (5-8 lines)**
+   - Industry implications: How does this affect the AI/ML landscape?
+   - Technical significance: What's the technical breakthrough or innovation?
+   - Market impact: Who benefits? What problems does this solve?
+   - Competitive landscape: How does this compare to competitors?
+   - Real-world applications: Where and how will this be used?
+   - Future implications: What does this enable next?
+   - Provide YOUR professional analysis, not just restating the news
+   - Add blank line after
 
-**LENGTH**: Maximum {self.max_length} characters
+4. **TECHNICAL DEEP DIVE (4-6 lines)**
+   - Architecture details: How does it work technically?
+   - Performance metrics: Benchmarks, speed, efficiency, scale
+   - Technical innovations: What's new or different?
+   - Implementation considerations: What does it take to use this?
+   - Trade-offs: What are the limitations or considerations?
+   - Reference frameworks, models, hardware specifics
+   - Add blank line after
+
+5. **PERSONAL INSIGHT / EXPERIENCE (3-5 lines)**
+   - Connect to your experience: "In my work with {', '.join(self.profile.get('skills', ['AI/ML'])[:3])}..."
+   - Share relevant insights from your expertise
+   - How would you use this? What would you build?
+   - What challenges have you faced that this addresses?
+   - Sound authentic and personal, not corporate
+   - Add blank line after
+
+6. **CALL TO ACTION (1-2 lines)**
+   - Thought-provoking question that invites discussion
+   - Make it specific and engaging
+   - Examples: "What use cases are you most excited about?" or "How do you think this will change your workflow?"
+
+**TECH GIANTS & PRODUCTS TO EMPHASIZE:**
+- OpenAI: GPT-4, GPT-4 Turbo, ChatGPT, Sora, DALL-E, Whisper, API updates, pricing
+- NVIDIA: H100, A100, GH200, Blackwell, RTX GPUs, CUDA, AI chips, data center infrastructure
+- Google: Gemini, Gemini Pro/Ultra, DeepMind, AlphaGo, AlphaFold, PaLM, BERT, TensorFlow
+- Microsoft: Copilot, Azure AI, GPT-4 integration, Bing Chat, Microsoft 365 AI, Azure OpenAI
+- Meta: Llama 2, Llama 3, OPT, AI research, PyTorch, open-source models
+- Apple: CoreML, Neural Engine, Siri, on-device AI, MLX framework
+- Amazon: Bedrock, Alexa AI, SageMaker, AWS AI services, Titan models
+- Anthropic: Claude, Claude 3 (Opus/Sonnet/Haiku), Constitutional AI, safety research
+- Others: Tesla Dojo, X.AI Grok, Mistral AI, Cohere, etc.
+
+**WRITING REQUIREMENTS:**
+- MINIMUM LENGTH: 800 characters (excluding hashtags) - make it substantial!
+- TARGET LENGTH: 1200-1800 characters for optimal engagement
+- MAXIMUM LENGTH: {self.max_length} characters
+- Use strategic emojis: 3-5 total, spaced naturally (🤖 🚀 💡 🔥 ⚡ 🎯 🧠 💻)
+- Professional tone: Authoritative but accessible, educational but engaging
+- NO markdown formatting anywhere (LinkedIn doesn't support it)
+- Use white space between sections for readability
+- Write in first person when sharing personal insights
+- Be specific: Use exact product names, metrics, and technical terms
+- Provide value: Teach, explain, analyze - don't just summarize
+
+**TONE & STYLE:**
+- Professional tech content creator voice
+- Authoritative and knowledgeable
+- Educational and valuable
+- Engaging but not overly casual
+- Technical depth without being inaccessible
+- Thought leadership quality
 
 Your Profile Information:
 {profile_context}
@@ -178,45 +224,50 @@ Description: {description}
 Source: {source}
 URL: {url}
 
-CRITICAL INSTRUCTIONS:
-- Start with an EYE-CATCHING HEADING (use 2-3 relevant emojis, make it compelling and attention-grabbing)
-- **NO MARKDOWN FORMATTING IN HEADING**: Use plain text only - do NOT use **bold**, __italic__, or any markdown syntax in the heading. LinkedIn doesn't support markdown, so it will show as literal text. Use emojis and plain text for emphasis only.
-- Write in STORYTELLING FORMAT - make it a narrative with flow, not a bullet list or dry technical report
-- Use STRATEGIC EMOJIS (5-8 total, relevant to content, spaced naturally throughout)
-- Create an ENGAGING HOOK in the first paragraph that draws readers in
-- Extract EVERY technical detail from the article (model names, companies, frameworks, metrics, architectures)
-- Use exact technical terminology (e.g., "GPT-4 Turbo", "Claude 3 Opus", "Llama 3 70B", "NVIDIA H100", "Google Gemini Pro")
-- ALWAYS identify and emphasize which tech giant is involved (OpenAI, NVIDIA, Google, Microsoft, Meta, etc.)
-- Reference real AI companies and technologies with specific product names
-- If NVIDIA-related, emphasize GPU specs, performance metrics, chip architecture, training capabilities
-- Include specific technical metrics if mentioned
-- Weave in your personal experience naturally as part of the story
-- Make it ENGAGING, SHAREABLE, and COMPELLING while maintaining technical depth
-- End with a compelling question that invites discussion
-- Use storytelling phrases: "Here's what caught my attention...", "This reminded me of...", "Let me share..."
+**CRITICAL:**
+- Follow the EXACT 6-section structure above
+- Each section must be FULLY DEVELOPED (not 1-2 sentences)
+- MINIMUM 800 characters (excluding hashtags)
+- Extract and include ALL technical details from the article
+- Emphasize the specific tech giant and their products
+- Provide deep analysis, not surface-level summary
+- Use white space between sections
+- NO markdown formatting anywhere
+- Write like a professional tech content creator, not a generic AI
 
-Write the LinkedIn post now. Do not include the URL in the post text (it will be added separately). Make it highly engaging, storytelling-style, with eye-catching heading and strategic emojis, while showcasing deep technical expertise."""
+Write the complete LinkedIn post now following the structure above. Do not include the URL in the post text."""
 
         return prompt
 
     def _generate_fallback_post(self, article: Dict) -> str:
-        """Generate a simple fallback post if AI generation fails"""
+        """Generate a professional fallback post if AI generation fails"""
         title = article.get('title', 'Interesting AI/ML Development')
         description = article.get('description', '')
         url = article.get('url', '')
         
-        post = f"""🤖 Exciting development in AI/ML: {title}
+        # Create a more substantial fallback post
+        post = f"""🚀 Breaking: {title}
 
-{description[:200]}...
+Here's what you need to know about this latest development in AI/ML:
 
-As someone working in AI/ML, I find this particularly interesting because it relates to my experience with {', '.join(self.profile.get('skills', ['AI/ML'])[:2])}.
+{description[:400] if len(description) > 400 else description}
 
-What are your thoughts on this? Let's discuss in the comments!
+This is particularly relevant for those working with {', '.join(self.profile.get('skills', ['AI/ML'])[:3])}. The implications could be significant for how we approach AI development and deployment.
+
+Key takeaways:
+• This represents a notable shift in the AI landscape
+• The technical details suggest important improvements in performance and capabilities
+• Industry applications could be wide-ranging
+
+From my experience in {', '.join(self.profile.get('expertise_areas', ['AI/ML'])[:2])}, I see this addressing several challenges we've been facing in the field.
+
+What are your thoughts on this development? How do you see this impacting your work?
 
 {url if url else ''}"""
         
         if self.include_hashtags and self.hashtags:
-            post += f"\n\n{' '.join(self.hashtags)}"
+            limited_hashtags = self.hashtags[:7] if len(self.hashtags) > 7 else self.hashtags
+            post += f"\n\n{' '.join(limited_hashtags)}"
         
         return post[:self.max_length]
 

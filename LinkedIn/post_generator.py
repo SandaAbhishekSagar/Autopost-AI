@@ -44,7 +44,7 @@ class PostGenerator:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a technical AI/ML expert creating highly engaging LinkedIn posts focused on major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.). Write posts that sound like a real person sharing insights, not ChatGPT or corporate marketing. Use authentic, conversational language with personal touches ('I learned...', 'I think...', 'I'd build...'). ALWAYS include relevant experience with similar projects when applicable - reference specific projects, technologies, or work experiences from the user's profile that relate to the news. ALWAYS emphasize the specific company (OpenAI, NVIDIA, Google, Microsoft, Meta, etc.) and their products/models (GPT-4, ChatGPT, Sora, H100, A100, Gemini, Claude, Llama, Copilot, etc.). Include specific technologies, frameworks, models, architectures, companies, and technical details. Keep technical concepts simple enough for non-experts while maintaining depth. Focus on value and teaching, not bragging. Use maximum 3-5 emojis total. Focus on breaking news and major announcements from these tech giants."
+                        "content": "You are a technical AI/ML expert creating highly engaging LinkedIn posts focused on major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.). Write posts that sound like a real person sharing insights, not ChatGPT or corporate marketing. Use authentic, conversational language with personal touches ('I learned...', 'I think...', 'I'd build...'). CRITICAL: Write substantial, detailed posts (minimum 400 characters excluding hashtags). Expand on each section with context, analysis, and insight. Do NOT write short, generic posts. ALWAYS include relevant experience with similar projects when applicable - reference specific projects, technologies, or work experiences from the user's profile that relate to the news. ALWAYS emphasize the specific company (OpenAI, NVIDIA, Google, Microsoft, Meta, etc.) and their products/models (GPT-4, ChatGPT, Sora, H100, A100, Gemini, Claude, Llama, Copilot, etc.). Include specific technologies, frameworks, models, architectures, companies, and technical details. Keep technical concepts simple enough for non-experts while maintaining depth. Focus on value and teaching, not bragging. Use maximum 3-5 emojis total. Focus on breaking news and major announcements from these tech giants."
                     },
                     {
                         "role": "user",
@@ -52,10 +52,16 @@ class PostGenerator:
                     }
                 ],
                 temperature=0.7,
-                max_tokens=1200  # Increased for more technical detail
+                max_tokens=1500  # Increased to allow for longer, more detailed posts
             )
             
             post_content = response.choices[0].message.content.strip()
+            
+            # Check if post is too short (excluding hashtags)
+            post_without_hashtags = post_content
+            min_length = 400
+            if len(post_without_hashtags) < min_length:
+                logger.warning(f"Generated post is too short ({len(post_without_hashtags)} chars). Minimum recommended: {min_length} chars. Consider regenerating.")
             
             # Add hashtags if enabled (limit to 3-5, place at bottom)
             if self.include_hashtags and self.hashtags:
@@ -156,25 +162,33 @@ class PostGenerator:
      * "I just learned something that changes how I think about [topic]."
    - Use 1-2 strategic emojis maximum in the hook
 
-2. **WHAT HAPPENED (1-2 lines)**:
-   - Briefly summarize the news in simple terms
-   - Keep it simple enough for non-experts to understand
+2. **WHAT HAPPENED (3-5 lines - EXPAND ON THE NEWS)**:
+   - Provide a detailed summary of the news, not just one line
+   - Include key details, context, and specifics from the article
+   - Explain what actually happened, who was involved, what the situation is
+   - Keep it simple enough for non-experts but provide enough detail to be informative
+   - DO NOT just copy the headline - expand on it with context
    - Add white space after this section
 
-3. **WHY IT MATTERS (2-3 lines)**:
-   - Explain the impact, use-case, or future implications
+3. **WHY IT MATTERS (4-6 lines - DEEP ANALYSIS REQUIRED)**:
+   - Explain the impact, use-case, or future implications in detail
    - Add your own thinking and analysis, not just restate the news
+   - Discuss technical implications, industry impact, or broader significance
+   - Connect it to trends, challenges, or opportunities in AI/ML
    - Make it useful, insightful, or thought-provoking
+   - Provide specific examples or scenarios where this matters
    - Add white space after this section
 
-4. **HOW I WOULD USE IT / WHAT I LEARNED / SIMILAR PROJECT EXPERIENCE (1-2 lines)**:
+4. **HOW I WOULD USE IT / WHAT I LEARNED / SIMILAR PROJECT EXPERIENCE (3-5 lines - PERSONAL CONNECTION)**:
    - Use personal language: "I learned...", "I think...", "I'd build...", "I would use this to..."
    - **CRITICAL: Include your experience with similar projects if applicable**
    - Reference specific projects you've worked on that relate to this news (e.g., "When I worked on [similar project], I encountered...", "This reminds me of a project where I...", "Having built [similar thing], I can see how this would...")
-   - Share a brief, relevant insight from your experience
-   - Connect the news to your actual work experience naturally
+   - Share detailed, relevant insights from your experience
+   - Connect the news to your actual work experience naturally and specifically
+   - Explain how this relates to your skills, projects, or expertise areas
    - Sound like a real person, not ChatGPT or corporate speak
    - Avoid over-polished corporate tone
+   - DO NOT use generic phrases like "I'd use this to explore new possibilities" - be specific
    - Add white space after this section
 
 5. **ENGAGING QUESTION / CTA (1 line)**:
@@ -220,13 +234,14 @@ The post MUST:
 - Avoid phrases like "This is interesting" or "This matters" - be specific and personal
 - Share your genuine thoughts and how you'd actually use this technology based on your experience
 
-**STRUCTURE (MUST FOLLOW EXACTLY):**
+**STRUCTURE (MUST FOLLOW EXACTLY - MINIMUM LENGTHS ENFORCED):**
 - Strong opening hook (1-2 lines) - curiosity-driven, attention-grabbing
-- What happened (1-2 lines) - simple summary
-- Why it matters (2-3 lines) - impact and implications with your thinking
-- How I would use it / What I learned (1-2 lines) - personal connection
-- Engaging question (1 line) - invites discussion
+- What happened (3-5 lines) - detailed summary with context, NOT just one line
+- Why it matters (4-6 lines) - deep analysis with your thinking, NOT generic statements
+- How I would use it / What I learned (3-5 lines) - specific personal connection, NOT generic phrases
+- Engaging question (1-2 lines) - thought-provoking question that invites discussion
 - Use white space between sections for readability
+- **TOTAL POST LENGTH: Aim for 400-800 characters minimum (excluding hashtags) - make it substantial!**
 
 **TONE:**
 - Engaging, conversational, authentic human voice
@@ -236,7 +251,11 @@ The post MUST:
 - Avoid corporate marketing speak or over-polished language
 - Sound like you're talking to a colleague, not giving a presentation
 
-**LENGTH**: Maximum {self.max_length} characters
+**LENGTH REQUIREMENTS**: 
+- Minimum: 400 characters (excluding hashtags) - make it substantial and detailed
+- Maximum: {self.max_length} characters
+- Each section must be fully developed, not just one or two sentences
+- Avoid short, generic posts - expand on each point with detail and insight
 
 Your Profile Information (use this to reference similar projects and experience):
 {profile_context}
@@ -255,11 +274,15 @@ URL: {url}
 
 CRITICAL INSTRUCTIONS:
 - **FOLLOW THE EXACT STRUCTURE ABOVE** - What/Why/How/Question format with white space
+- **MINIMUM LENGTH ENFORCED**: Post must be at least 400 characters (excluding hashtags). Each section must be fully developed.
+- **EXPAND ON EVERY SECTION**: Do NOT write one-line summaries. Provide detail, context, and insight in each section.
 - **STRONG OPENING HOOK** - First 1-2 lines must be curiosity-driven (see examples above)
 - **NO MARKDOWN FORMATTING**: Use plain text only - do NOT use **bold**, __italic__, or any markdown syntax. LinkedIn doesn't support markdown.
 - **EMOJI LIMIT**: Maximum 3-5 emojis total, spaced naturally. NO emoji overload.
 - **PERSONAL VOICE**: Use "I learned...", "I think...", "I'd build..." - sound like a real person, not ChatGPT
-- **INCLUDE SIMILAR PROJECT EXPERIENCE**: If applicable, reference your experience with similar projects, tools, or technologies from your profile. Connect the news to your actual work naturally.
+- **INCLUDE SIMILAR PROJECT EXPERIENCE**: If applicable, reference your experience with similar projects, tools, or technologies from your profile. Connect the news to your actual work naturally and specifically.
+- **AVOID GENERIC PHRASES**: Do NOT use generic statements like "I'd use this to explore new possibilities" or "This relates to my experience with Python". Be SPECIFIC about how it connects to your work, projects, or expertise.
+- **DEEP ANALYSIS REQUIRED**: The "WHY IT MATTERS" section must provide substantial analysis, not just restate the news. Discuss implications, trends, challenges, or opportunities.
 - **VALUE OVER FLEX**: Focus on teaching and explaining, not bragging
 - **SIMPLE STRUCTURE**: Use white space between sections. No walls of text.
 - Extract EVERY technical detail from the article (model names, companies, frameworks, metrics, architectures)
@@ -269,8 +292,8 @@ CRITICAL INSTRUCTIONS:
 - If NVIDIA-related, emphasize GPU specs, performance metrics, chip architecture, training capabilities
 - Include specific technical metrics if mentioned
 - Make it ENGAGING, SHAREABLE, and COMPELLING while maintaining technical depth
-- **END WITH A QUESTION** - Must invite discussion
-- **AVOID**: "Good morning LinkedIn", generic greetings, corporate speak, emoji overload, bragging
+- **END WITH A QUESTION** - Must invite discussion (1-2 lines, not just one short question)
+- **AVOID**: "Good morning LinkedIn", generic greetings, corporate speak, emoji overload, bragging, short generic posts, one-line sections
 
 Write the LinkedIn post now. Do not include the URL in the post text (it will be added separately). Make it highly engaging, storytelling-style, with eye-catching heading and strategic emojis, while showcasing deep technical expertise."""
 

@@ -44,7 +44,7 @@ class PostGenerator:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a technical AI/ML expert creating highly engaging LinkedIn posts focused on major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.). Write posts in a storytelling format that are both technically deep AND highly engaging. Use eye-catching headings, strategic emojis, and narrative flow. ALWAYS emphasize the specific company (OpenAI, NVIDIA, Google, Microsoft, Meta, etc.) and their products/models (GPT-4, ChatGPT, Sora, H100, A100, Gemini, Claude, Llama, Copilot, etc.). Include specific technologies, frameworks, models, architectures, companies, and technical details. Reference specific AI companies, models, hardware (NVIDIA GPUs, chips), frameworks (PyTorch, TensorFlow, JAX, etc.), and technical concepts. Be specific about architectures, performance metrics, implementation details, and technical trade-offs. Write for a technical audience but make it captivating and shareable. Focus on breaking news and major announcements from these tech giants."
+                        "content": "You are a technical AI/ML expert creating highly engaging LinkedIn posts focused on major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.). Write posts that sound like a real person sharing insights, not ChatGPT or corporate marketing. Use authentic, conversational language with personal touches ('I learned...', 'I think...', 'I'd build...'). ALWAYS include relevant experience with similar projects when applicable - reference specific projects, technologies, or work experiences from the user's profile that relate to the news. ALWAYS emphasize the specific company (OpenAI, NVIDIA, Google, Microsoft, Meta, etc.) and their products/models (GPT-4, ChatGPT, Sora, H100, A100, Gemini, Claude, Llama, Copilot, etc.). Include specific technologies, frameworks, models, architectures, companies, and technical details. Keep technical concepts simple enough for non-experts while maintaining depth. Focus on value and teaching, not bragging. Use maximum 3-5 emojis total. Focus on breaking news and major announcements from these tech giants."
                     },
                     {
                         "role": "user",
@@ -57,9 +57,12 @@ class PostGenerator:
             
             post_content = response.choices[0].message.content.strip()
             
-            # Add hashtags if enabled
+            # Add hashtags if enabled (limit to 3-5, place at bottom)
             if self.include_hashtags and self.hashtags:
-                hashtag_string = " ".join(self.hashtags)
+                # Limit to 3-5 hashtags maximum
+                limited_hashtags = self.hashtags[:5] if len(self.hashtags) > 5 else self.hashtags
+                hashtag_string = " ".join(limited_hashtags)
+                # Ensure hashtags are at the bottom, not in the middle
                 post_content = f"{post_content}\n\n{hashtag_string}"
             
             # Ensure length is within limits
@@ -97,6 +100,27 @@ class PostGenerator:
             expertise = ", ".join(self.profile['expertise_areas'])
             context_parts.append(f"Expertise Areas: {expertise}")
         
+        # Add project experience (if available) - CRITICAL for connecting to similar work
+        if self.profile.get('projects'):
+            projects = self.profile['projects']
+            if isinstance(projects, list):
+                project_list = []
+                for project in projects:
+                    if isinstance(project, dict):
+                        proj_str = project.get('name', '')
+                        if project.get('technologies'):
+                            techs = ", ".join(project['technologies']) if isinstance(project['technologies'], list) else project['technologies']
+                            proj_str += f" (Technologies: {techs})"
+                        if project.get('description'):
+                            proj_str += f" - {project['description']}"
+                        project_list.append(proj_str)
+                    else:
+                        project_list.append(str(project))
+                if project_list:
+                    context_parts.append(f"Relevant Projects & Work Experience: {'; '.join(project_list)}")
+            else:
+                context_parts.append(f"Relevant Projects & Work Experience: {projects}")
+        
         # Add education information
         if self.profile.get('education'):
             edu = self.profile['education']
@@ -118,13 +142,52 @@ class PostGenerator:
         url = article.get('url', '')
         source = article.get('source', 'Unknown')
         
-        prompt = f"""Create a highly engaging, storytelling-style LinkedIn post about this AI/ML news article from major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.) that showcases deep technical expertise. The post MUST:
+        prompt = f"""Create a highly engaging, storytelling-style LinkedIn post about this AI/ML news article from major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.) that showcases deep technical expertise. 
+
+**CRITICAL: Follow this exact structure with white space between sections:**
+
+1. **STRONG OPENING HOOK (First 1-2 lines - LinkedIn cuts after 2 lines!)**:
+   - Must be curiosity-driven and attention-grabbing
+   - NOT generic like "Good morning LinkedIn" or "Check out this news"
+   - Examples of good hooks:
+     * "This could change how startups use AI."
+     * "Everyone is talking about this AI release, but here's what matters."
+     * "Most people missed this detail in today's AI news."
+     * "I just learned something that changes how I think about [topic]."
+   - Use 1-2 strategic emojis maximum in the hook
+
+2. **WHAT HAPPENED (1-2 lines)**:
+   - Briefly summarize the news in simple terms
+   - Keep it simple enough for non-experts to understand
+   - Add white space after this section
+
+3. **WHY IT MATTERS (2-3 lines)**:
+   - Explain the impact, use-case, or future implications
+   - Add your own thinking and analysis, not just restate the news
+   - Make it useful, insightful, or thought-provoking
+   - Add white space after this section
+
+4. **HOW I WOULD USE IT / WHAT I LEARNED / SIMILAR PROJECT EXPERIENCE (1-2 lines)**:
+   - Use personal language: "I learned...", "I think...", "I'd build...", "I would use this to..."
+   - **CRITICAL: Include your experience with similar projects if applicable**
+   - Reference specific projects you've worked on that relate to this news (e.g., "When I worked on [similar project], I encountered...", "This reminds me of a project where I...", "Having built [similar thing], I can see how this would...")
+   - Share a brief, relevant insight from your experience
+   - Connect the news to your actual work experience naturally
+   - Sound like a real person, not ChatGPT or corporate speak
+   - Avoid over-polished corporate tone
+   - Add white space after this section
+
+5. **ENGAGING QUESTION / CTA (1 line)**:
+   - End with a compelling question that invites discussion
+   - Make it thought-provoking and discussion-worthy
+
+The post MUST:
 
 **FORMAT & STYLE:**
-1. **Eye-Catching Heading**: Start with a compelling, attention-grabbing headline with strategic emojis (1-2 lines max, use 2-3 relevant emojis). IMPORTANT: Use plain text only - NO markdown formatting (no **bold**, no __italic__, no #hashtags in heading). Just use emojis and plain text for emphasis.
-2. **Storytelling Format**: Write in a narrative, engaging style - tell a story with a beginning, middle, and end. Use phrases like "Let me share what caught my attention...", "Here's what's fascinating...", "This reminded me of when I..."
-3. **Strategic Emojis**: Use 5-8 relevant emojis throughout (🤖 🚀 💡 🔥 ⚡ 🎯 🧠 💻 🔬 📊 🎨 but don't overuse - space them naturally)
-4. **Engaging Hook**: First paragraph after heading should immediately capture attention with a personal connection or intriguing question
+1. **Strategic Emojis**: Use 3-5 relevant emojis MAXIMUM throughout the entire post (🤖 🚀 💡 🔥 ⚡ 🎯 🧠 💻). NO emoji overload. Space them naturally - one in the hook, one or two in the middle, one at the end if needed.
+2. **Personal Voice**: Write like a real person, not ChatGPT or corporate marketing. Use conversational, authentic language.
+3. **Value Over Flex**: Focus on teaching and explaining clearly. Avoid bragging or showing off. Make it useful for others.
+4. **Simple Language**: Keep technical concepts simple enough for non-experts to understand, while maintaining depth for technical readers.
 
 **TECHNICAL CONTENT (Maintain Depth):**
 5. **Technical Depth**: Include specific technical details, architectures, models, frameworks, and methodologies
@@ -145,32 +208,44 @@ class PostGenerator:
    - Performance metrics (benchmarks, efficiency, latency, throughput)
    - Implementation details (scaling, optimization, deployment strategies)
    - Technical trade-offs and comparisons
-9. **Personal Story Integration**: Weave in your experience naturally in storytelling format:
-   - "In my work with {', '.join(self.profile.get('skills', [])[:3])}..."
-   - "Having fine-tuned models like GPT-4 and LLaMA..."
-   - "When I deployed YOLOv8 for object detection..."
-   - Share a brief, relevant technical challenge or insight from your experience as a story
-9. **Technical Perspective**: Share your professional technical opinion on implications
-10. **Strong Call-to-Action**: End with an engaging question that invites discussion
+**PERSONAL TOUCH (CRITICAL):**
+- ALWAYS use first-person language: "I learned...", "I think...", "I'd build...", "I would use this to...", "This reminds me of when I..."
+- **INCLUDE SIMILAR PROJECT EXPERIENCE**: If the news relates to projects you've worked on, mention them naturally:
+  * "When I worked on [similar project/tool/technology], I encountered..."
+  * "This reminds me of a project where I used [related technology]..."
+  * "Having built [similar thing] using [technologies from profile], I can see how this would..."
+  * "In my experience with [relevant skill/project], this would be useful for..."
+- Reference your actual skills, projects, and experience from your profile when relevant
+- Sound like a real human sharing insights, not an AI or corporate account
+- Avoid phrases like "This is interesting" or "This matters" - be specific and personal
+- Share your genuine thoughts and how you'd actually use this technology based on your experience
 
-**STRUCTURE:**
-- Eye-catching heading with emoji (1-2 lines)
-- Engaging opening paragraph (hook with personal connection)
-- Technical deep-dive with storytelling elements (narrative flow)
-- Personal connection/experience (weaved into the story)
-- Technical implications and insights
-- Engaging question/CTA
+**STRUCTURE (MUST FOLLOW EXACTLY):**
+- Strong opening hook (1-2 lines) - curiosity-driven, attention-grabbing
+- What happened (1-2 lines) - simple summary
+- Why it matters (2-3 lines) - impact and implications with your thinking
+- How I would use it / What I learned (1-2 lines) - personal connection
+- Engaging question (1 line) - invites discussion
+- Use white space between sections for readability
 
 **TONE:**
-- Engaging, conversational, storytelling style
+- Engaging, conversational, authentic human voice
 - Professional yet approachable and exciting
-- Technically accurate but shareable
+- Technically accurate but accessible to non-experts
 - Make readers feel like they're learning something fascinating
+- Avoid corporate marketing speak or over-polished language
+- Sound like you're talking to a colleague, not giving a presentation
 
 **LENGTH**: Maximum {self.max_length} characters
 
-Your Profile Information:
+Your Profile Information (use this to reference similar projects and experience):
 {profile_context}
+
+**IMPORTANT**: When writing the "HOW I WOULD USE IT / WHAT I LEARNED" section, actively look for connections between the article and your profile (skills, projects, expertise areas). If there's a relevant project or experience, mention it naturally. For example:
+- If the article is about LLMs and you have NLP/LLM experience, mention a relevant project
+- If it's about computer vision and you have CV skills, reference your experience
+- If it's about a specific framework (PyTorch, TensorFlow) you've used, connect it to your work
+- If it's about a tech giant's product you've worked with, mention your experience
 
 Article Information:
 Title: {title}
@@ -179,44 +254,49 @@ Source: {source}
 URL: {url}
 
 CRITICAL INSTRUCTIONS:
-- Start with an EYE-CATCHING HEADING (use 2-3 relevant emojis, make it compelling and attention-grabbing)
-- **NO MARKDOWN FORMATTING IN HEADING**: Use plain text only - do NOT use **bold**, __italic__, or any markdown syntax in the heading. LinkedIn doesn't support markdown, so it will show as literal text. Use emojis and plain text for emphasis only.
-- Write in STORYTELLING FORMAT - make it a narrative with flow, not a bullet list or dry technical report
-- Use STRATEGIC EMOJIS (5-8 total, relevant to content, spaced naturally throughout)
-- Create an ENGAGING HOOK in the first paragraph that draws readers in
+- **FOLLOW THE EXACT STRUCTURE ABOVE** - What/Why/How/Question format with white space
+- **STRONG OPENING HOOK** - First 1-2 lines must be curiosity-driven (see examples above)
+- **NO MARKDOWN FORMATTING**: Use plain text only - do NOT use **bold**, __italic__, or any markdown syntax. LinkedIn doesn't support markdown.
+- **EMOJI LIMIT**: Maximum 3-5 emojis total, spaced naturally. NO emoji overload.
+- **PERSONAL VOICE**: Use "I learned...", "I think...", "I'd build..." - sound like a real person, not ChatGPT
+- **INCLUDE SIMILAR PROJECT EXPERIENCE**: If applicable, reference your experience with similar projects, tools, or technologies from your profile. Connect the news to your actual work naturally.
+- **VALUE OVER FLEX**: Focus on teaching and explaining, not bragging
+- **SIMPLE STRUCTURE**: Use white space between sections. No walls of text.
 - Extract EVERY technical detail from the article (model names, companies, frameworks, metrics, architectures)
 - Use exact technical terminology (e.g., "GPT-4 Turbo", "Claude 3 Opus", "Llama 3 70B", "NVIDIA H100", "Google Gemini Pro")
 - ALWAYS identify and emphasize which tech giant is involved (OpenAI, NVIDIA, Google, Microsoft, Meta, etc.)
 - Reference real AI companies and technologies with specific product names
 - If NVIDIA-related, emphasize GPU specs, performance metrics, chip architecture, training capabilities
 - Include specific technical metrics if mentioned
-- Weave in your personal experience naturally as part of the story
 - Make it ENGAGING, SHAREABLE, and COMPELLING while maintaining technical depth
-- End with a compelling question that invites discussion
-- Use storytelling phrases: "Here's what caught my attention...", "This reminded me of...", "Let me share..."
+- **END WITH A QUESTION** - Must invite discussion
+- **AVOID**: "Good morning LinkedIn", generic greetings, corporate speak, emoji overload, bragging
 
 Write the LinkedIn post now. Do not include the URL in the post text (it will be added separately). Make it highly engaging, storytelling-style, with eye-catching heading and strategic emojis, while showcasing deep technical expertise."""
 
         return prompt
 
     def _generate_fallback_post(self, article: Dict) -> str:
-        """Generate a simple fallback post if AI generation fails"""
+        """Generate a simple fallback post if AI generation fails - follows checklist structure"""
         title = article.get('title', 'Interesting AI/ML Development')
         description = article.get('description', '')
         url = article.get('url', '')
         
-        post = f"""🤖 Exciting development in AI/ML: {title}
+        # Follow the checklist structure: Hook/What/Why/How/Question
+        post = f"""This could change how we think about AI 🤖
 
-{description[:200]}...
+{title}
 
-As someone working in AI/ML, I find this particularly interesting because it relates to my experience with {', '.join(self.profile.get('skills', ['AI/ML'])[:2])}.
+{description[:250] if description else 'Interesting development in AI/ML that caught my attention.'}
 
-What are your thoughts on this? Let's discuss in the comments!
+I think this matters because it relates to my experience with {', '.join(self.profile.get('skills', ['AI/ML'])[:2])}. I'd use this to explore new possibilities in the field.
 
-{url if url else ''}"""
+What are your thoughts on this? Let's discuss! 💡"""
         
+        # Add hashtags at bottom (limit to 3-5)
         if self.include_hashtags and self.hashtags:
-            post += f"\n\n{' '.join(self.hashtags)}"
+            limited_hashtags = self.hashtags[:5] if len(self.hashtags) > 5 else self.hashtags
+            post += f"\n\n{' '.join(limited_hashtags)}"
         
         return post[:self.max_length]
 

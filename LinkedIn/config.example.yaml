@@ -19,6 +19,15 @@ profile:
     - "LLMs"
     - "AI Research"
     - "MLOps"
+  # Optional: Add relevant projects to reference in posts (helps connect news to your experience)
+  projects:
+    - name: "LLM Fine-tuning Project"
+      technologies: ["PyTorch", "HuggingFace", "GPT-4"]
+      description: "Fine-tuned language models for specific use cases"
+    - name: "Computer Vision System"
+      technologies: ["TensorFlow", "YOLOv8", "OpenCV"]
+      description: "Built object detection system for real-time applications"
+    # Add more projects as needed - these will be referenced when relevant to the news
 
 # LinkedIn API Credentials
 linkedin:
@@ -53,15 +62,13 @@ post_generation:
   max_post_length: 3000  # LinkedIn character limit
   include_hashtags: true
   hashtags:
-    - "#AI"
-    - "#MachineLearning"
-    - "#ArtificialIntelligence"
-    - "#TechNews"
-    - "#Innovation"
-    - "#OpenAI"
-    - "#NVIDIA"
-    - "#TechGiants"
-    - "#AITech"
+    # Use 3-5 hashtags maximum (best mix: 1 broad + 1 role-based + 1 tool/topic + 1 career)
+    - "#AI"                    # Broad
+    - "#MachineLearning"       # Role-based / Tool
+    - "#TechCareers"            # Career
+    # Optional: Add 1-2 more based on the specific tech giant in the news
+    # - "#OpenAI"               # Use when OpenAI news
+    # - "#NVIDIA"                # Use when NVIDIA news
 
 # Posting Schedule
 schedule:

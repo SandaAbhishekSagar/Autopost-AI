@@ -288,6 +288,9 @@
     </div>
 
     <script>
+        // Global variable to store posts data
+        let postsData = [];
+
         // Check status on load
         window.addEventListener('load', checkStatus);
 
@@ -349,6 +352,9 @@
         function displayPosts(posts) {
             const container = document.getElementById('postsContainer');
             container.innerHTML = '';
+            
+            // Store posts data globally for button handlers
+            postsData = posts;
 
             posts.forEach((post, index) => {
                 const card = document.createElement('div');
@@ -406,11 +412,11 @@
                     ${scoringHTML}
                     <div class="post-content">${escapeHtml(post.content)}</div>
                     <div class="post-actions">
-                        <button class="btn btn-success btn-small" onclick="postToLinkedIn(${index}, ${JSON.stringify(post).replace(/"/g, '&quot;')})">
+                        <button class="btn btn-success btn-small" data-post-index="${index}" onclick="postToLinkedIn(event, this)">
                             <span>📤</span>
                             Post to LinkedIn
                         </button>
-                        <button class="btn btn-primary btn-small" onclick="copyToClipboard(${index})">
+                        <button class="btn btn-primary btn-small" data-post-index="${index}" onclick="copyToClipboard(event, this)">
                             <span>📋</span>
                             Copy Text
                         </button>
@@ -420,12 +426,21 @@
             });
         }
 
-        async function postToLinkedIn(index, postData) {
+        async function postToLinkedIn(event, button) {
             if (!confirm('Are you sure you want to post this to LinkedIn?')) {
                 return;
             }
 
-            const btn = event.target.closest('button');
+            const btn = button || event.target.closest('button');
+            const index = parseInt(btn.getAttribute('data-post-index'));
+            
+            if (isNaN(index) || index < 0 || index >= postsData.length) {
+                showStatus('error', 'Post data not found');
+                return;
+            }
+
+            const postData = postsData[index];
+
             btn.disabled = true;
             btn.innerHTML = '<span>⏳</span> Posting...';
 
@@ -458,15 +473,26 @@
             }
         }
 
-        function copyToClipboard(index) {
+        function copyToClipboard(event, button) {
+            const btn = button || event.target.closest('button');
+            const index = parseInt(btn.getAttribute('data-post-index'));
             const postCards = document.querySelectorAll('.post-card');
-            const postContent = postCards[index].querySelector('.post-content').textContent;
             
-            navigator.clipboard.writeText(postContent).then(() => {
-                showStatus('success', 'Post content copied to clipboard!');
-            }).catch(err => {
-                showStatus('error', 'Failed to copy to clipboard');
-            });
+            if (index >= 0 && index < postCards.length) {
+                const postContent = postCards[index].querySelector('.post-content');
+                if (postContent) {
+                    const textToCopy = postContent.textContent || postContent.innerText;
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        showStatus('success', 'Post content copied to clipboard!');
+                    }).catch(err => {
+                        showStatus('error', 'Failed to copy to clipboard: ' + err.message);
+                    });
+                } else {
+                    showStatus('error', 'Post content not found');
+                }
+            } else {
+                showStatus('error', 'Invalid post index');
+            }
         }
 
         function showStatus(type, message) {

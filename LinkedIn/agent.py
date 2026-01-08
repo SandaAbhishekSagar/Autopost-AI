@@ -38,9 +38,19 @@ class LinkedInAIAgent:
     def __init__(self, config_path: str = "config.yaml"):
         """Initialize the agent with configuration"""
         self.config = self._load_config(config_path)
-        self.news_fetcher = NewsFetcher(self.config.get('news', {}))
+        news_config = self.config.get('news', {})
+        self.news_fetcher = NewsFetcher(news_config)
         self.post_generator = PostGenerator(self.config)
         self.linkedin_poster = LinkedInPoster(self.config.get('linkedin', {}))
+        
+        # Multi-article settings
+        self.use_multiple_articles = news_config.get('use_multiple_articles', False)
+        self.articles_per_post = news_config.get('articles_per_post', 3)
+        
+        if self.use_multiple_articles:
+            logger.info(f"Multi-article storytelling mode ENABLED - will combine {self.articles_per_post} articles per post")
+        else:
+            logger.info("Single article mode - generating posts from individual articles")
         if NEWS_SCORER_AVAILABLE:
             self.news_scorer = NewsScorer()
             logger.info("News value scoring enabled - posting frequency recommendations available")
@@ -179,7 +189,9 @@ class LinkedInAIAgent:
             # Step 1: Fetch latest news (ranked by value if scorer available)
             logger.info("Fetching latest AI/ML news...")
             rank_by_value = self.news_scorer is not None
-            articles = self.news_fetcher.get_latest_news(limit=10, rank_by_value=rank_by_value)
+            # Fetch enough articles for multi-article mode if enabled
+            limit = max(10, self.articles_per_post * 2) if self.use_multiple_articles else 10
+            articles = self.news_fetcher.get_latest_news(limit=limit, rank_by_value=rank_by_value)
             
             if not articles:
                 logger.warning("No articles found matching criteria")
@@ -191,16 +203,32 @@ class LinkedInAIAgent:
             if self.news_scorer:
                 self._display_news_analysis(articles)
             
-            # Step 2: Generate post for the highest value article (or most recent if no scorer)
-            article = articles[0]  # Get the highest value one (or most recent)
-            article_title = article.get('title', 'Unknown')
-            if self.news_scorer and article.get('value_score'):
-                logger.info(f"Generating post for top article: {article_title} (Score: {article.get('value_score')}/110)")
+            # Step 2: Generate post (single or multi-article based on config)
+            if self.use_multiple_articles and len(articles) >= self.articles_per_post:
+                # Multi-article storytelling mode
+                selected_articles = articles[:self.articles_per_post]
+                logger.info(f"Generating multi-article storytelling post from {len(selected_articles)} articles:")
+                for i, art in enumerate(selected_articles, 1):
+                    title = art.get('title', 'Unknown')[:60]
+                    source = art.get('source', 'Unknown')
+                    logger.info(f"  {i}. {title}... ({source})")
+                
+                post_content = self.post_generator.generate_multi_article_post(selected_articles)
+                logger.info("Multi-article storytelling post generated successfully")
+                
+                # Use first article URL for LinkedIn post metadata
+                article = selected_articles[0]
             else:
-                logger.info(f"Generating post for: {article_title}")
-            
-            post_content = self.post_generator.generate_post(article)
-            logger.info("Post generated successfully")
+                # Single article mode (backward compatible)
+                article = articles[0]  # Get the highest value one (or most recent)
+                article_title = article.get('title', 'Unknown')
+                if self.news_scorer and article.get('value_score'):
+                    logger.info(f"Generating post for top article: {article_title} (Score: {article.get('value_score')}/110)")
+                else:
+                    logger.info(f"Generating post for: {article_title}")
+                
+                post_content = self.post_generator.generate_post(article)
+                logger.info("Post generated successfully")
             
             # Display the post
             try:
@@ -288,13 +316,19 @@ class LinkedInAIAgent:
             num_posts: Number of posts to preview
             
         Returns:
-            List of dictionaries with article and post content
+            List of dictionaries with article(s) and post content
         """
         logger.info(f"Generating preview for {num_posts} posts...")
         
+        # Get enough articles for multi-article mode if enabled
+        if self.use_multiple_articles:
+            articles_needed = num_posts * self.articles_per_post
+        else:
+            articles_needed = num_posts
+        
         # Get articles ranked by value
         rank_by_value = self.news_scorer is not None
-        articles = self.news_fetcher.get_latest_news(limit=num_posts, rank_by_value=rank_by_value)
+        articles = self.news_fetcher.get_latest_news(limit=articles_needed, rank_by_value=rank_by_value)
         
         # Display analysis if scorer available
         if self.news_scorer:
@@ -302,25 +336,51 @@ class LinkedInAIAgent:
         
         previews = []
         
-        for i, article in enumerate(articles, 1):
-            # Show scoring for each article before generating post
-            if self.news_scorer and article.get('value_score') is not None:
-                score = article.get('value_score', 0)
-                percentage = article.get('value_percentage', 0)
-                priority = article.get('value_priority', 'UNKNOWN')
-                recommendation = article.get('value_recommendation', '')
-                title = article.get('title', 'Unknown')[:70]
+        if self.use_multiple_articles and len(articles) >= self.articles_per_post:
+            # Multi-article mode
+            for i in range(num_posts):
+                start_idx = i * self.articles_per_post
+                end_idx = start_idx + self.articles_per_post
                 
-                print(f"\n📝 Generating Post {i}/{len(articles)}")
-                print(f"   Article: {title}...")
-                print(f"   📊 Value Score: {score}/110 ({percentage}%) | Priority: {priority}")
-                print(f"   💡 Recommendation: {recommendation}")
-            
-            post_content = self.post_generator.generate_post(article)
-            previews.append({
-                'article': article,
-                'post': post_content
-            })
+                if end_idx > len(articles):
+                    break
+                
+                selected_articles = articles[start_idx:end_idx]
+                
+                print(f"\n📝 Generating Multi-Article Post {i+1}/{num_posts}")
+                print(f"   Combining {len(selected_articles)} articles:")
+                for j, art in enumerate(selected_articles, 1):
+                    title = art.get('title', 'Unknown')[:60]
+                    source = art.get('source', 'Unknown')
+                    print(f"      {j}. {title}... ({source})")
+                
+                post_content = self.post_generator.generate_multi_article_post(selected_articles)
+                previews.append({
+                    'article': selected_articles[0],  # Use first article for metadata
+                    'articles': selected_articles,  # Include all articles
+                    'post': post_content
+                })
+        else:
+            # Single article mode (backward compatible)
+            for i, article in enumerate(articles[:num_posts], 1):
+                # Show scoring for each article before generating post
+                if self.news_scorer and article.get('value_score') is not None:
+                    score = article.get('value_score', 0)
+                    percentage = article.get('value_percentage', 0)
+                    priority = article.get('value_priority', 'UNKNOWN')
+                    recommendation = article.get('value_recommendation', '')
+                    title = article.get('title', 'Unknown')[:70]
+                    
+                    print(f"\n📝 Generating Post {i}/{min(num_posts, len(articles))}")
+                    print(f"   Article: {title}...")
+                    print(f"   📊 Value Score: {score}/110 ({percentage}%) | Priority: {priority}")
+                    print(f"   💡 Recommendation: {recommendation}")
+                
+                post_content = self.post_generator.generate_post(article)
+                previews.append({
+                    'article': article,
+                    'post': post_content
+                })
         
         return previews
 

@@ -26,6 +26,7 @@ class NewsFetcher:
         self.keywords_excluded = config.get('keywords_excluded', [])
         self.min_age_hours = config.get('min_article_age_hours', 0)
         self.max_age_hours = config.get('max_article_age_hours', 48)
+        self.use_hacker_news = config.get('use_hacker_news', True)
 
     def fetch_from_news_api(self) -> List[Dict]:
         """Fetch news from NewsAPI.org - Focus on OpenAI, NVIDIA, and Tech Giants"""
@@ -62,6 +63,75 @@ class NewsFetcher:
         except Exception as e:
             logger.error(f"Error fetching from NewsAPI: {e}")
             return []
+
+    def fetch_from_hacker_news(self, limit: int = 30) -> List[Dict]:
+        """Fetch top stories from Hacker News API"""
+        if not self.use_hacker_news:
+            return []
+        
+        articles = []
+        try:
+            # Fetch top story IDs
+            top_stories_url = "https://hacker-news.firebaseio.com/v0/topstories.json"
+            response = requests.get(top_stories_url, timeout=10)
+            response.raise_for_status()
+            story_ids = response.json()[:limit]
+            
+            # Fetch details for each story
+            for story_id in story_ids:
+                try:
+                    story_url = f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json"
+                    story_response = requests.get(story_url, timeout=5)
+                    story_response.raise_for_status()
+                    story = story_response.json()
+                    
+                    # Only include stories with URLs (exclude Ask HN, Show HN without URLs)
+                    if story.get('type') == 'story' and story.get('url'):
+                        # Check if title contains required keywords
+                        title = story.get('title', '').lower()
+                        text = title
+                        
+                        # Check if it matches our criteria
+                        if self._matches_keywords(text):
+                            # Parse published time (Unix timestamp)
+                            published_time = story.get('time', 0)
+                            if published_time:
+                                from datetime import datetime, timezone
+                                pub_date = datetime.fromtimestamp(published_time, tz=timezone.utc)
+                                published_at = pub_date.isoformat()
+                            else:
+                                published_at = datetime.now().isoformat()
+                            
+                            article = {
+                                'title': story.get('title', ''),
+                                'description': f"Hacker News story with {story.get('score', 0)} points and {story.get('descendants', 0)} comments",
+                                'url': story.get('url', ''),
+                                'published_at': published_at,
+                                'source': 'Hacker News',
+                                'score': story.get('score', 0),
+                                'comments': story.get('descendants', 0)
+                            }
+                            
+                            if self._is_valid_article(article):
+                                articles.append(article)
+                    
+                    time.sleep(0.1)  # Be respectful to API
+                except Exception as e:
+                    logger.warning(f"Error fetching Hacker News story {story_id}: {e}")
+                    continue
+                    
+        except Exception as e:
+            logger.error(f"Error fetching from Hacker News: {e}")
+        
+        return articles
+    
+    def _matches_keywords(self, text: str) -> bool:
+        """Check if text matches required keywords"""
+        if not self.keywords_required:
+            return True
+        
+        text_lower = text.lower()
+        return any(keyword.lower() in text_lower for keyword in self.keywords_required)
 
     def fetch_from_rss(self) -> List[Dict]:
         """Fetch news from RSS feeds"""
@@ -187,6 +257,10 @@ class NewsFetcher:
             all_articles.extend(self.fetch_from_news_api())
         
         all_articles.extend(self.fetch_from_rss())
+        
+        # Fetch from Hacker News
+        if self.use_hacker_news:
+            all_articles.extend(self.fetch_from_hacker_news())
         
         # Remove duplicates based on URL
         seen_urls = set()

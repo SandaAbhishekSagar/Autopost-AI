@@ -86,6 +86,72 @@ class PostGenerator:
             # Fallback to a simple template
             return self._generate_fallback_post(article)
 
+    def generate_multi_article_post(self, articles: List[Dict]) -> str:
+        """
+        Generate a storytelling LinkedIn post from multiple articles
+        
+        Args:
+            articles: List of article dictionaries (minimum 3 recommended)
+        
+        Returns:
+            Generated post content
+        """
+        if len(articles) < 2:
+            logger.warning("Multi-article post requires at least 2 articles. Using single article mode.")
+            return self.generate_post(articles[0])
+        
+        # Build context about the user
+        profile_context = self._build_profile_context()
+        
+        # Build the storytelling prompt
+        prompt = self._build_storytelling_prompt(articles, profile_context)
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a professional tech content creator and AI/ML expert with deep industry knowledge. You create compelling storytelling LinkedIn posts that weave multiple news articles into cohesive narratives. Your posts are authoritative, insightful, and provide real value. You write like a thought leader who connects the dots between different developments in AI/ML. You focus on major tech giants (OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon, Anthropic, etc.) and their products. Your writing style is professional, engaging, and educational - you tell stories that teach while they inform. You use strategic emojis (6-10 total) and structure posts for maximum readability with clear sections and white space."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.75,
+                max_tokens=3000  # Increased for multi-article storytelling
+            )
+            
+            post_content = response.choices[0].message.content.strip()
+            
+            # Check minimum length
+            min_length = 1000  # Multi-article posts should be longer
+            post_without_hashtags = post_content
+            if self.include_hashtags and self.hashtags:
+                for tag in self.hashtags:
+                    post_without_hashtags = post_without_hashtags.replace(tag, '')
+            
+            if len(post_without_hashtags.strip()) < min_length:
+                logger.warning(f"Generated multi-article post is shorter than recommended minimum ({len(post_without_hashtags)} chars). Minimum recommended: {min_length} chars.")
+            
+            # Add hashtags if enabled
+            if self.include_hashtags and self.hashtags:
+                limited_hashtags = self.hashtags[:7] if len(self.hashtags) > 7 else self.hashtags
+                hashtag_string = " ".join(limited_hashtags)
+                post_content = f"{post_content}\n\n{hashtag_string}"
+            
+            # Ensure length is within limits
+            if len(post_content) > self.max_length:
+                post_content = post_content[:self.max_length-3] + "..."
+            
+            return post_content
+            
+        except Exception as e:
+            logger.error(f"Error generating multi-article post: {e}")
+            # Fallback to single article mode
+            return self.generate_post(articles[0])
+
     def _build_profile_context(self) -> str:
         """Build a context string about the user's profile"""
         context_parts = []
@@ -273,6 +339,155 @@ URL: {url}
 - ❌ Markdown formatting (will show as literal text)
 
 Write the complete LinkedIn post now following the structure above. Do not include the URL in the post text."""
+
+        return prompt
+
+    def _build_storytelling_prompt(self, articles: List[Dict], profile_context: str) -> str:
+        """Build the storytelling prompt for multi-article posts"""
+        
+        # Format articles information
+        articles_info = []
+        for i, article in enumerate(articles, 1):
+            articles_info.append(f"""
+Article {i}:
+- Title: {article.get('title', 'No title')}
+- Source: {article.get('source', 'Unknown')}
+- Description: {article.get('description', 'No description')}
+- URL: {article.get('url', '')}
+""")
+        
+        articles_text = "\n".join(articles_info)
+        
+        prompt = f"""Create a compelling storytelling LinkedIn post (1000-2500 characters, excluding hashtags) that weaves together {len(articles)} news articles into a cohesive narrative. This is NOT just summarizing articles - you're creating a story that connects them.
+
+**CRITICAL: FIRST 2 LINES ARE EVERYTHING**
+LinkedIn only shows the first 2 lines in the feed. Make them count with a curiosity-driven hook that introduces the connecting theme!
+
+**MANDATORY STORYTELLING STRUCTURE:**
+
+1. **EYE-CATCHING HEADING (EXACTLY 2 LINES - NO MARKDOWN!)**
+   - Line 1: Curiosity-driven hook that introduces the overarching theme connecting all articles
+   - Line 2: Continue the hook or add context that builds intrigue
+   - Use 2-3 strategic emojis (one in first line recommended)
+   - NO markdown formatting (no **bold**, __italic__)
+   - Must introduce the connecting theme/narrative
+   - Examples:
+     * "Three major AI developments just dropped this week. Here's the pattern most people are missing..."
+     * "OpenAI, NVIDIA, and Google all made announcements. But the real story is what connects them..."
+   - Add blank line after
+
+2. **OPENING - INTRODUCE THE CONNECTING THEME (3-5 lines)**
+   - What's the overarching theme or pattern connecting these articles?
+   - Why are these developments happening together?
+   - Set up the narrative arc
+   - Reference sources naturally: "According to TechCrunch...", "Reuters reports...", "The Verge notes...", "Hacker News discussion highlights..."
+   - Add blank line after
+
+3. **DEVELOPMENT - WEAVE ARTICLES TOGETHER (8-12 lines, 2-4 lines per paragraph)**
+   - Weave together insights from each article
+   - Show how articles complement each other
+   - Highlight interesting connections, contrasts, or patterns
+   - Reference each source naturally as you discuss their article
+   - Use specific product names: GPT-4 Turbo, NVIDIA H100, Google Gemini Pro, Claude 3 Opus, Llama 3 70B
+   - Include technical details: model architectures, training methodologies, performance metrics
+   - Keep paragraphs short (2-4 lines max) for readability
+   - Add blank line after
+
+4. **CONNECTION POINTS - SHOW THE BIGGER PICTURE (5-8 lines, 2-4 lines per paragraph)**
+   - What patterns emerge when you look at all articles together?
+   - How do these developments relate to each other?
+   - What's the bigger picture or trend?
+   - Industry implications: How does this affect the AI/ML landscape?
+   - Competitive dynamics: How do these relate to each other?
+   - Keep paragraphs short (2-4 lines max)
+   - Add blank line after
+
+5. **TECHNICAL DEEP DIVE (6-10 lines, 2-4 lines per paragraph)**
+   - Architecture details: How do these technologies work?
+   - Performance metrics: Benchmarks, speed, efficiency, scale
+   - Technical innovations: What's new or different?
+   - Framework references: PyTorch, TensorFlow, JAX, HuggingFace
+   - Training methodologies: RLHF, fine-tuning approaches, MoE architectures
+   - Implementation considerations: What does it take to use these?
+   - Keep paragraphs short (2-4 lines max)
+   - Add blank line after
+
+6. **PERSONAL INSIGHT / EXPERIENCE (4-6 lines)**
+   - Weave in your experience naturally: "In my work with {', '.join(self.profile.get('skills', ['AI/ML'])[:3])}..."
+   - "Having fine-tuned models like GPT-4 and LLaMA..."
+   - "When I deployed {self.profile.get('expertise_areas', ['AI systems'])[0]}..."
+   - Share relevant insights from your expertise
+   - Connect to your expertise areas
+   - Use storytelling phrases: "This reminded me of...", "In my experience...", "Having worked with..."
+   - Sound authentic and personal, NOT like ChatGPT
+   - Add blank line after
+
+7. **CONCLUSION - FORWARD-LOOKING THOUGHTS (3-5 lines)**
+   - What does this mean for the future?
+   - What are the implications?
+   - What should we watch for next?
+   - Add blank line after
+
+8. **ENGAGING QUESTION/CTA (1-2 lines)**
+   - Thought-provoking question that invites discussion
+   - Make it specific and engaging
+   - Examples: "What patterns are you seeing in AI development?" or "How do you think these developments will converge?"
+
+**TECH GIANTS & PRODUCTS TO EMPHASIZE:**
+- OpenAI: GPT-4, GPT-4 Turbo, ChatGPT, Sora, DALL-E, Whisper, API updates
+- NVIDIA: H100, A100, GH200, Blackwell, RTX GPUs, CUDA, AI chips
+- Google: Gemini, Gemini Pro/Ultra, DeepMind, AlphaGo, AlphaFold, PaLM, BERT, TensorFlow
+- Microsoft: Copilot, Azure AI, GPT-4 integration, Bing Chat, Azure OpenAI
+- Meta: Llama 2, Llama 3, OPT, AI research, PyTorch
+- Apple: CoreML, Neural Engine, Siri, MLX framework
+- Amazon: Bedrock, Alexa AI, SageMaker, AWS AI services
+- Anthropic: Claude, Claude 3 (Opus/Sonnet/Haiku), Constitutional AI
+- Others: Tesla Dojo, X.AI Grok, Mistral AI, Cohere
+
+**STORYTELLING REQUIREMENTS:**
+- Create a NARRATIVE ARC: opening → development → connections → personal insight → conclusion
+- Weave articles together naturally - don't just list them
+- Reference sources naturally as you discuss their content
+- Show connections and patterns between articles
+- Maintain technical depth while being engaging
+- Use 6-10 strategic emojis total, spaced naturally (🤖 🚀 💡 🔥 ⚡ 🎯 🧠 💻 🎨 🔬)
+- NO markdown formatting anywhere (LinkedIn doesn't support it)
+- Paragraph length: 2-4 lines maximum (no walls of text)
+- White space: Blank line between each major section
+- MINIMUM LENGTH: 1000 characters (excluding hashtags)
+- TARGET LENGTH: 1500-2200 characters for optimal engagement
+- MAXIMUM LENGTH: {self.max_length} characters
+
+**TONE & STYLE:**
+- Professional tech content creator voice
+- Storytelling approach - create a narrative, not just summaries
+- Educational and valuable (teach, don't just inform)
+- Engaging but professional
+- Technical depth without being inaccessible
+- Authentic human voice (sound like you're talking to a colleague)
+- Value-first approach (every section should add value)
+
+Your Profile Information:
+{profile_context}
+
+Articles to Synthesize:
+{articles_text}
+
+**CRITICAL CHECKLIST:**
+- ✅ FIRST 2 LINES: Curiosity-driven hook introducing connecting theme (NO MARKDOWN!)
+- ✅ Create a cohesive NARRATIVE, not just article summaries
+- ✅ Reference sources naturally ("According to TechCrunch...", "Reuters reports...")
+- ✅ Show connections and patterns between articles
+- ✅ Weave in personal experience authentically
+- ✅ Include technical depth (specific models, frameworks, metrics)
+- ✅ MINIMUM 1000 characters (excluding hashtags)
+- ✅ Paragraphs: 2-4 lines maximum
+- ✅ White space: Blank line between sections
+- ✅ Strategic emojis: 6-10 total, spaced naturally
+- ✅ NO markdown formatting anywhere
+- ✅ Engaging question: End with thought-provoking CTA
+
+Write the complete storytelling LinkedIn post now. Do not include URLs in the post text."""
 
         return prompt
 

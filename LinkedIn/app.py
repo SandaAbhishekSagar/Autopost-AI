@@ -52,18 +52,42 @@ def generate_post():
         # Format response
         posts = []
         for preview in previews:
-            article = preview['article']
-            post_data = {
-                'article': {
-                    'title': article.get('title', 'Unknown'),
-                    'source': article.get('source', 'Unknown'),
-                    'url': article.get('url', ''),
-                    'description': article.get('description', '')
-                },
-                'content': preview['post']
-            }
+            # Handle both single article and multi-article modes
+            if 'articles' in preview:
+                # Multi-article mode
+                articles = preview['articles']
+                article = preview['article']  # First article for metadata
+                post_data = {
+                    'article': {
+                        'title': f"Multi-Article Story: {len(articles)} articles combined",
+                        'source': ', '.join(set([a.get('source', 'Unknown') for a in articles])),
+                        'url': article.get('url', ''),
+                        'description': f"Combined {len(articles)} articles into a storytelling post"
+                    },
+                    'content': preview['post'],
+                    'articles': [
+                        {
+                            'title': a.get('title', 'Unknown'),
+                            'source': a.get('source', 'Unknown'),
+                            'url': a.get('url', '')
+                        }
+                        for a in articles
+                    ]
+                }
+            else:
+                # Single article mode (backward compatible)
+                article = preview['article']
+                post_data = {
+                    'article': {
+                        'title': article.get('title', 'Unknown'),
+                        'source': article.get('source', 'Unknown'),
+                        'url': article.get('url', ''),
+                        'description': article.get('description', '')
+                    },
+                    'content': preview['post']
+                }
             
-            # Add value scoring if available
+            # Add value scoring if available (from first article in multi-article mode)
             if article.get('value_score') is not None:
                 post_data['scoring'] = {
                     'score': article.get('value_score', 0),

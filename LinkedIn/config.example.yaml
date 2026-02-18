@@ -1,5 +1,8 @@
-# LinkedIn AI/ML Auto-Poster Configuration Example
+# AutoPost AI - LinkedIn Content Generator
 # Copy this file to config.yaml and fill in your details
+#
+# Now powered by OpenAI Web Search - no RSS feeds, NewsAPI keys, or scraping needed.
+# Just provide your OpenAI API key and the app searches the web for the latest AI news.
 
 # Your LinkedIn Profile Information
 profile:
@@ -27,45 +30,34 @@ linkedin:
   access_token: "YOUR_ACCESS_TOKEN"
   # Get these from: https://www.linkedin.com/developers/apps
 
-# AI/ML News Sources - Focus on OpenAI, NVIDIA, and Tech Giants
+# News Search Settings (powered by OpenAI Web Search)
 news:
-  # RSS Feeds - Primary sources for AI/ML news
-  rss_feeds:
-    - "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
-    - "https://techcrunch.com/category/artificial-intelligence/feed/"
-    - "https://www.reuters.com/rsrss/technologyNews/"
-  
-  # Hacker News API integration (Firebase API)
-  use_hacker_news: true  # Fetch top stories from Hacker News
-  
-  # Alternative: Use news API (requires API key) - Recommended for better tech giants coverage
-  use_news_api: false
-  news_api_key: "YOUR_NEWS_API_KEY"  # Optional: Get from https://newsapi.org/
-  
+  # Model used for web search via Responses API + web_search tool
+  # gpt-4o-mini is fast and cheap; use gpt-4o for more thorough results
+  search_model: "gpt-4o-mini"
+
+  # Default topics to search for (can also be changed from the UI)
+  topics:
+    - "OpenAI"
+    - "NVIDIA"
+    - "Google AI"
+    - "Microsoft AI"
+    - "Meta AI"
+    - "Anthropic"
+    - "AI models"
+    - "generative AI"
+    - "LLM"
+
   # Multi-Article Storytelling Mode
-  use_multiple_articles: true  # Set to true to combine multiple articles into storytelling posts
-  articles_per_post: 3  # Number of articles to combine (minimum 2, recommended 3-5)
-  
-  # Article age filtering
-  min_article_age_hours: 0  # Only post articles newer than this
-  max_article_age_hours: 48  # Don't post articles older than this
-  
-  # Keyword filtering
-  keywords_required:
-    # At least one of these should be mentioned (AI/ML related)
-    - "AI"
-    - "machine learning"
-    - "artificial intelligence"
-  keywords_excluded:
-    - "crypto"
-    - "bitcoin"
+  use_multiple_articles: false
+  articles_per_post: 3
 
 # Post Generation Settings
 post_generation:
-  ai_model: "gpt-4"  # or "gpt-3.5-turbo" for cost savings (gpt-4 recommended for longer, better posts)
+  ai_model: "gpt-4"           # Model for writing posts (gpt-4 recommended for quality)
   openai_api_key: "YOUR_OPENAI_API_KEY"
-  tone: "professional"  # professional, engaging, technical
-  max_post_length: 3000  # LinkedIn character limit (posts will be 800-2000 chars for professional quality)
+  tone: "professional"
+  max_post_length: 3000
   include_hashtags: true
   hashtags:
     - "#AI"
@@ -75,13 +67,10 @@ post_generation:
     - "#Innovation"
     - "#OpenAI"
     - "#NVIDIA"
-    - "#TechGiants"
-    - "#AITech"
 
 # Posting Schedule
 schedule:
   enabled: true
-  frequency: "daily"  # daily, weekly, or custom cron
-  time: "09:00"  # Post time (24-hour format)
+  frequency: "daily"
+  time: "09:00"
   timezone: "UTC"
-

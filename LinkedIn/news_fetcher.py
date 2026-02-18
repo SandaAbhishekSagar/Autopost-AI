@@ -1,288 +1,297 @@
 """
-News Fetcher Module
-Fetches latest AI/ML news from various sources
+AI-Powered News Fetcher Module
+Uses OpenAI's web_search tool (Responses API) to fetch latest AI/ML news
+instead of traditional RSS/API scraping.
+
+Docs: https://platform.openai.com/docs/guides/tools-web-search
 """
 
-import requests
-import feedparser
-from datetime import datetime, timedelta
-from typing import List, Dict
+import json
+import re
 import logging
-from bs4 import BeautifulSoup
-import time
+from datetime import datetime
+from typing import Dict, List, Optional
+from openai import OpenAI
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+# Reputable tech news domains for domain-filtered search
+TRUSTED_DOMAINS = [
+    "theverge.com",
+    "techcrunch.com",
+    "reuters.com",
+    "bloomberg.com",
+    "wired.com",
+    "venturebeat.com",
+    "arstechnica.com",
+    "theinformation.com",
+    "cnbc.com",
+    "bbc.com",
+    "nytimes.com",
+    "wsj.com",
+    "thenextweb.com",
+    "engadget.com",
+    "zdnet.com",
+    "tomsguide.com",
+]
+
+
 class NewsFetcher:
+    """Fetches latest AI/ML news using OpenAI's web_search tool"""
+
+    DEFAULT_TOPICS = [
+        "OpenAI", "NVIDIA", "Google AI", "Microsoft AI",
+        "Meta AI", "Anthropic", "AI models", "machine learning",
+        "deep learning", "LLM", "generative AI"
+    ]
+
     def __init__(self, config: Dict):
         self.config = config
-        self.news_api_key = config.get('news_api_key')
-        self.use_news_api = config.get('use_news_api', False)
-        self.rss_feeds = config.get('rss_feeds', [])
-        self.sources = config.get('sources', [])
-        self.keywords_required = config.get('keywords_required', [])
-        self.keywords_excluded = config.get('keywords_excluded', [])
-        self.min_age_hours = config.get('min_article_age_hours', 0)
-        self.max_age_hours = config.get('max_article_age_hours', 48)
-        self.use_hacker_news = config.get('use_hacker_news', True)
+        openai_key = config.get('post_generation', {}).get('openai_api_key', '')
+        if not openai_key:
+            raise ValueError("OpenAI API key is required for AI-powered news fetching")
 
-    def fetch_from_news_api(self) -> List[Dict]:
-        """Fetch news from NewsAPI.org - Focus on OpenAI, NVIDIA, and Tech Giants"""
-        if not self.news_api_key or not self.use_news_api:
-            return []
+        self.client = OpenAI(api_key=openai_key)
+        news_config = config.get('news', {})
+        self.search_model = news_config.get('search_model', 'gpt-4o-mini')
+        self.topics = news_config.get('topics', self.DEFAULT_TOPICS)
 
-        try:
-            url = "https://newsapi.org/v2/everything"
-            # Focus on OpenAI, NVIDIA, Google, Microsoft, Meta, Apple, Amazon AI news
-            params = {
-                'q': '(OpenAI OR "GPT-4" OR ChatGPT OR Sora OR "NVIDIA" OR "Nvidia" OR "RTX" OR "H100" OR "A100" OR "Google AI" OR Gemini OR "DeepMind" OR "Microsoft AI" OR Copilot OR "Azure AI" OR "Meta AI" OR Llama OR "LLaMA" OR "Apple AI" OR "Amazon AI" OR Bedrock) AND (AI OR "artificial intelligence" OR "machine learning")',
-                'sortBy': 'publishedAt',
-                'language': 'en',
-                'pageSize': 30,
-                'apiKey': self.news_api_key
-            }
-            
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            articles = []
-            for article in data.get('articles', []):
-                if self._is_valid_article(article):
-                    articles.append({
-                        'title': article.get('title', ''),
-                        'description': article.get('description', ''),
-                        'url': article.get('url', ''),
-                        'published_at': article.get('publishedAt', ''),
-                        'source': article.get('source', {}).get('name', 'Unknown')
-                    })
-            
-            return articles
-        except Exception as e:
-            logger.error(f"Error fetching from NewsAPI: {e}")
-            return []
-
-    def fetch_from_hacker_news(self, limit: int = 30) -> List[Dict]:
-        """Fetch top stories from Hacker News API"""
-        if not self.use_hacker_news:
-            return []
-        
-        articles = []
-        try:
-            # Fetch top story IDs
-            top_stories_url = "https://hacker-news.firebaseio.com/v0/topstories.json"
-            response = requests.get(top_stories_url, timeout=10)
-            response.raise_for_status()
-            story_ids = response.json()[:limit]
-            
-            # Fetch details for each story
-            for story_id in story_ids:
-                try:
-                    story_url = f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json"
-                    story_response = requests.get(story_url, timeout=5)
-                    story_response.raise_for_status()
-                    story = story_response.json()
-                    
-                    # Only include stories with URLs (exclude Ask HN, Show HN without URLs)
-                    if story.get('type') == 'story' and story.get('url'):
-                        # Check if title contains required keywords
-                        title = story.get('title', '').lower()
-                        text = title
-                        
-                        # Check if it matches our criteria
-                        if self._matches_keywords(text):
-                            # Parse published time (Unix timestamp)
-                            published_time = story.get('time', 0)
-                            if published_time:
-                                from datetime import datetime, timezone
-                                pub_date = datetime.fromtimestamp(published_time, tz=timezone.utc)
-                                published_at = pub_date.isoformat()
-                            else:
-                                published_at = datetime.now().isoformat()
-                            
-                            article = {
-                                'title': story.get('title', ''),
-                                'description': f"Hacker News story with {story.get('score', 0)} points and {story.get('descendants', 0)} comments",
-                                'url': story.get('url', ''),
-                                'published_at': published_at,
-                                'source': 'Hacker News',
-                                'score': story.get('score', 0),
-                                'comments': story.get('descendants', 0)
-                            }
-                            
-                            if self._is_valid_article(article):
-                                articles.append(article)
-                    
-                    time.sleep(0.1)  # Be respectful to API
-                except Exception as e:
-                    logger.warning(f"Error fetching Hacker News story {story_id}: {e}")
-                    continue
-                    
-        except Exception as e:
-            logger.error(f"Error fetching from Hacker News: {e}")
-        
-        return articles
-    
-    def _matches_keywords(self, text: str) -> bool:
-        """Check if text matches required keywords"""
-        if not self.keywords_required:
-            return True
-        
-        text_lower = text.lower()
-        return any(keyword.lower() in text_lower for keyword in self.keywords_required)
-
-    def fetch_from_rss(self) -> List[Dict]:
-        """Fetch news from RSS feeds"""
-        articles = []
-        
-        for feed_url in self.rss_feeds:
-            try:
-                feed = feedparser.parse(feed_url)
-                
-                for entry in feed.entries[:10]:  # Limit to 10 per feed
-                    article = {
-                        'title': entry.get('title', ''),
-                        'description': self._extract_description(entry),
-                        'url': entry.get('link', ''),
-                        'published_at': self._parse_date(entry.get('published', '')),
-                        'source': feed.feed.get('title', 'Unknown')
-                    }
-                    
-                    if self._is_valid_article(article):
-                        articles.append(article)
-                
-                time.sleep(1)  # Be respectful to servers
-            except Exception as e:
-                logger.error(f"Error fetching RSS feed {feed_url}: {e}")
-        
-        return articles
-
-    def _extract_description(self, entry) -> str:
-        """Extract description from RSS entry"""
-        if 'summary' in entry:
-            return entry.summary
-        elif 'description' in entry:
-            return entry.description
-        else:
-            return ''
-
-    def _parse_date(self, date_str: str) -> str:
-        """Parse date string to ISO format"""
-        try:
-            if hasattr(date_str, 'timetuple'):
-                return date_str.isoformat()
-            # Try parsing common date formats
-            for fmt in ['%a, %d %b %Y %H:%M:%S %z', '%a, %d %b %Y %H:%M:%S %Z', '%Y-%m-%dT%H:%M:%S']:
-                try:
-                    dt = datetime.strptime(date_str, fmt)
-                    return dt.isoformat()
-                except:
-                    continue
-            return date_str
-        except:
-            return date_str
-
-    def _is_valid_article(self, article: Dict) -> bool:
-        """Check if article meets our criteria - Focus on tech giants"""
-        title = article.get('title', '').lower()
-        description = article.get('description', '').lower()
-        text = f"{title} {description}"
-        
-        # Tech giants keywords (at least one must be present)
-        tech_giants_keywords = [
-            'openai', 'gpt-4', 'gpt-3', 'chatgpt', 'sora', 'dall-e', 'whisper',
-            'nvidia', 'nvidia', 'rtx', 'h100', 'a100', 'gh200', 'blackwell', 'cuda',
-            'google ai', 'gemini', 'deepmind', 'alphago', 'alphafold', 'palm', 'bert',
-            'microsoft ai', 'copilot', 'azure ai', 'bing chat', 'gpt-4 turbo',
-            'meta ai', 'llama', 'llama 2', 'llama 3', 'opt', 'galactica',
-            'apple ai', 'coreml', 'neural engine', 'siri',
-            'amazon ai', 'bedrock', 'alexa', 'sagemaker',
-            'anthropic', 'claude', 'claude 3',
-            'tesla ai', 'dojo', 'fsd',
-            'x ai', 'grok'
-        ]
-        
-        # Check if article mentions any tech giant
-        has_tech_giant = any(keyword in text for keyword in tech_giants_keywords)
-        
-        # Check required keywords (if specified)
-        if self.keywords_required:
-            has_required = any(keyword.lower() in text for keyword in self.keywords_required)
-            if not has_required and not has_tech_giant:
-                return False
-        
-        # If no required keywords specified, at least one tech giant must be mentioned
-        if not self.keywords_required and not has_tech_giant:
-            return False
-        
-        # Check excluded keywords
-        if self.keywords_excluded:
-            if any(keyword.lower() in text for keyword in self.keywords_excluded):
-                return False
-        
-        # Check age
-        published_at = article.get('published_at', '')
-        if published_at:
-            try:
-                if 'T' in published_at:
-                    pub_date = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
-                else:
-                    pub_date = datetime.strptime(published_at, '%Y-%m-%d %H:%M:%S')
-                
-                age_hours = (datetime.now(pub_date.tzinfo) - pub_date).total_seconds() / 3600
-                
-                if age_hours < self.min_age_hours or age_hours > self.max_age_hours:
-                    return False
-            except Exception as e:
-                logger.warning(f"Could not parse date {published_at}: {e}")
-        
-        return True
-
-    def get_latest_news(self, limit: int = 5, rank_by_value: bool = False) -> List[Dict]:
+    def get_latest_news(self, limit: int = 10, rank_by_value: bool = False,
+                        topics: Optional[List[str]] = None) -> List[Dict]:
         """
-        Get latest news from all sources
-        
+        Get latest AI/ML news using OpenAI web search.
+
         Args:
             limit: Maximum number of articles to return
-            rank_by_value: If True, rank articles by value score (requires news_scorer)
-        
+            rank_by_value: If True, rank articles by value score
+            topics: Optional custom topics to search for
+
         Returns:
-            List of article dictionaries, optionally ranked by value
+            List of article dictionaries
         """
-        all_articles = []
-        
-        if self.use_news_api:
-            all_articles.extend(self.fetch_from_news_api())
-        
-        all_articles.extend(self.fetch_from_rss())
-        
-        # Fetch from Hacker News
-        if self.use_hacker_news:
-            all_articles.extend(self.fetch_from_hacker_news())
-        
-        # Remove duplicates based on URL
-        seen_urls = set()
-        unique_articles = []
-        for article in all_articles:
-            url = article.get('url', '')
-            if url and url not in seen_urls:
-                seen_urls.add(url)
-                unique_articles.append(article)
-        
-        # If ranking by value, use NewsScorer
+        search_topics = topics or self.topics
+        articles = self._search_news(search_topics, limit)
+
+        if not articles:
+            logger.warning("No articles found from web search")
+            return []
+
+        logger.info(f"Found {len(articles)} articles via AI web search")
+
         if rank_by_value:
             try:
                 from news_scorer import NewsScorer
                 scorer = NewsScorer()
-                unique_articles = scorer.rank_articles(unique_articles)
+                articles = scorer.rank_articles(articles)
             except ImportError:
-                logger.warning("news_scorer not available, sorting by date instead")
-                unique_articles.sort(key=lambda x: x.get('published_at', ''), reverse=True)
-        else:
-            # Sort by date (newest first)
-            unique_articles.sort(key=lambda x: x.get('published_at', ''), reverse=True)
-        
-        return unique_articles[:limit]
+                logger.warning("news_scorer not available, returning articles as-is")
 
+        return articles[:limit]
+
+    def _search_news(self, topics: List[str], limit: int) -> List[Dict]:
+        """Search for news using OpenAI's web_search tool"""
+        topics_str = ", ".join(topics[:10])
+        fetch_count = min(limit * 2, 20)
+
+        prompt = f"""Search the web for the latest AI technology news and developments from the past 48 hours.
+
+Focus on these topics and companies: {topics_str}
+
+Find the most important and impactful recent news articles about AI technologies, tools, models, product launches, research breakthroughs, and industry developments.
+
+Return ONLY a valid JSON array with up to {fetch_count} articles. No markdown formatting, no code blocks, no explanation - just the raw JSON array:
+
+[
+  {{
+    "title": "Exact article headline",
+    "description": "2-3 sentence summary of the key points",
+    "url": "Full URL to the article",
+    "source": "Publication name (e.g., The Verge, TechCrunch, Reuters)",
+    "published_at": "ISO 8601 date (e.g., 2026-02-18T10:30:00Z)"
+  }}
+]
+
+Requirements:
+- Only include real, verified articles with actual working URLs
+- Focus on major developments, product launches, funding, partnerships, and breakthroughs
+- Include articles from reputable tech publications
+- Sort by importance and recency (most important first)
+- Each description should capture the key substance of the article
+- Return ONLY the JSON array"""
+
+        result = self._call_web_search(prompt)
+        if not result:
+            return []
+
+        raw_text, citation_urls = result
+        articles = self._parse_articles(raw_text)
+
+        # Enrich articles with citation URLs if the model returned them
+        if citation_urls:
+            self._enrich_with_citations(articles, citation_urls)
+
+        return articles
+
+    def _call_web_search(self, prompt: str) -> Optional[tuple]:
+        """
+        Call OpenAI with web search, returning (text, citation_urls).
+        Uses a 3-tier fallback strategy.
+        """
+
+        # Strategy 1: Responses API with web_search tool (GA)
+        try:
+            logger.info(f"Fetching news via Responses API web_search with {self.search_model}...")
+            response = self.client.responses.create(
+                model=self.search_model,
+                tools=[{"type": "web_search"}],
+                input=prompt
+            )
+            text = response.output_text
+            citations = self._extract_citations(response)
+            if text and len(text) > 50:
+                logger.info("Successfully fetched news via Responses API (web_search)")
+                return text, citations
+        except Exception as e:
+            logger.info(f"Responses API web_search failed: {e}")
+
+        # Strategy 1b: Try web_search_preview if web_search GA isn't available
+        try:
+            logger.info("Trying Responses API with web_search_preview...")
+            response = self.client.responses.create(
+                model=self.search_model,
+                tools=[{"type": "web_search_preview"}],
+                input=prompt
+            )
+            text = response.output_text
+            citations = self._extract_citations(response)
+            if text and len(text) > 50:
+                logger.info("Successfully fetched news via Responses API (web_search_preview)")
+                return text, citations
+        except Exception as e:
+            logger.info(f"Responses API web_search_preview failed: {e}")
+
+        # Strategy 2: Chat Completions with dedicated search models
+        for model in ["gpt-5-search-api", "gpt-4o-search-preview", "gpt-4o-mini-search-preview"]:
+            try:
+                logger.info(f"Trying Chat Completions with {model}...")
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                text = response.choices[0].message.content
+                if text and len(text) > 50:
+                    logger.info(f"Successfully fetched news via {model}")
+                    return text, []
+            except Exception as e:
+                logger.info(f"{model} not available: {e}")
+
+        # Strategy 3: Standard model fallback (no live web search)
+        try:
+            logger.info("Falling back to standard model (no live web search)...")
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an AI technology news reporter. Based on your knowledge, provide the most recent and important AI news developments. Return realistic and accurate information."
+                    },
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3
+            )
+            text = response.choices[0].message.content
+            if text:
+                logger.info("Retrieved news from standard model knowledge")
+                return text, []
+        except Exception as e:
+            logger.error(f"All news fetching strategies failed: {e}")
+
+        return None
+
+    def _extract_citations(self, response) -> List[Dict]:
+        """Extract url_citation annotations from a Responses API response"""
+        citations = []
+        try:
+            for item in response.output:
+                if getattr(item, 'type', None) == 'message':
+                    for content_block in getattr(item, 'content', []):
+                        for annotation in getattr(content_block, 'annotations', []):
+                            if getattr(annotation, 'type', None) == 'url_citation':
+                                citations.append({
+                                    'url': getattr(annotation, 'url', ''),
+                                    'title': getattr(annotation, 'title', '')
+                                })
+        except Exception as e:
+            logger.debug(f"Could not extract citations: {e}")
+        return citations
+
+    def _enrich_with_citations(self, articles: List[Dict], citations: List[Dict]) -> None:
+        """Fill in missing article URLs from citation annotations"""
+        citation_map = {c['title'].lower().strip(): c['url'] for c in citations if c.get('title') and c.get('url')}
+
+        for article in articles:
+            if article.get('url'):
+                continue
+            title_lower = article.get('title', '').lower().strip()
+            for cit_title, cit_url in citation_map.items():
+                if title_lower in cit_title or cit_title in title_lower:
+                    article['url'] = cit_url
+                    break
+
+    def _parse_articles(self, raw_text: str) -> List[Dict]:
+        """Parse the response text to extract structured article data"""
+        text = raw_text.strip()
+
+        # Remove markdown code fences if present
+        if text.startswith("```"):
+            lines = text.split("\n")
+            start = 1
+            end = len(lines)
+            for i in range(len(lines) - 1, 0, -1):
+                if lines[i].strip().startswith("```"):
+                    end = i
+                    break
+            text = "\n".join(lines[start:end]).strip()
+
+        articles = self._try_parse_json(text)
+        if articles:
+            return articles
+
+        # Try extracting JSON array from surrounding text
+        json_match = re.search(r'\[[\s\S]*\]', text)
+        if json_match:
+            articles = self._try_parse_json(json_match.group())
+            if articles:
+                return articles
+
+        logger.error("Could not parse articles from AI response")
+        return []
+
+    def _try_parse_json(self, text: str) -> Optional[List[Dict]]:
+        """Attempt to parse JSON text into a list of article dicts"""
+        try:
+            data = json.loads(text)
+            if not isinstance(data, list):
+                return None
+
+            valid_articles = []
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                if not item.get('title'):
+                    continue
+
+                article = {
+                    'title': str(item.get('title', '')).strip(),
+                    'description': str(item.get('description', '')).strip(),
+                    'url': str(item.get('url', '')).strip(),
+                    'source': str(item.get('source', 'Unknown')).strip(),
+                    'published_at': str(item.get('published_at', datetime.now().isoformat())).strip()
+                }
+                valid_articles.append(article)
+
+            return valid_articles if valid_articles else None
+        except (json.JSONDecodeError, ValueError):
+            return None

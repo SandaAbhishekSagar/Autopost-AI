@@ -202,7 +202,9 @@ class PostGenerator:
 **CRITICAL: FIRST 2 LINES ARE EVERYTHING**
 LinkedIn only shows the first 2 lines in the feed. If those don't grab attention, people will scroll past. Make them count!
 
-**MANDATORY STRUCTURE (Follow this exact format with white space between sections):**
+**MANDATORY STRUCTURE (Follow this flow in your writing - but output ONLY smooth prose, NO section headers or numbers):**
+
+**CRITICAL OUTPUT RULE**: Write ONLY the post content as flowing prose. Do NOT include section numbers (1., 2., 3.), section labels (COMPELLING HEADLINE, THE NEWS, etc.), or bullet-point dashes in your output. The reader should see a clean LinkedIn post, not an outline.
 
 1. **COMPELLING HEADLINE (EXACTLY 2 LINES - MOST CRITICAL!)**
    - Line 1: Curiosity-driven, attention-grabbing hook that makes people stop scrolling
@@ -338,7 +340,7 @@ URL: {url}
 - ❌ Too many emojis (more than 5)
 - ❌ Markdown formatting (will show as literal text)
 
-Write the complete LinkedIn post now following the structure above. Do not include the URL in the post text."""
+Write the complete LinkedIn post now. Output ONLY the post content as clean prose - no section numbers, no headers like "COMPELLING HEADLINE" or "THE NEWS", no bullet formatting. Do not include the URL in the post text."""
 
         return prompt
 
@@ -363,7 +365,9 @@ Article {i}:
 **CRITICAL: FIRST 2 LINES ARE EVERYTHING**
 LinkedIn only shows the first 2 lines in the feed. Make them count with a curiosity-driven hook that introduces the connecting theme!
 
-**MANDATORY STORYTELLING STRUCTURE:**
+**MANDATORY STORYTELLING STRUCTURE (Follow this flow - output ONLY smooth prose, NO section headers or numbers):**
+
+**CRITICAL OUTPUT RULE**: Write ONLY the post content as flowing prose. Do NOT include section numbers (1., 2., 3.), section labels (EYE-CATCHING HEADING, OPENING, etc.), or bullet-point dashes. Output a clean LinkedIn post, not an outline.
 
 1. **EYE-CATCHING HEADING (EXACTLY 2 LINES - NO MARKDOWN!)**
    - Line 1: Curiosity-driven hook that introduces the overarching theme connecting all articles
@@ -487,7 +491,7 @@ Articles to Synthesize:
 - ✅ NO markdown formatting anywhere
 - ✅ Engaging question: End with thought-provoking CTA
 
-Write the complete storytelling LinkedIn post now. Do not include URLs in the post text."""
+Write the complete storytelling LinkedIn post now. Output ONLY the post content as clean prose - no section numbers, no headers like "OPENING" or "DEVELOPMENT", no bullet formatting. Do not include URLs in the post text."""
 
         return prompt
 

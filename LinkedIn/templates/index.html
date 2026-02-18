@@ -1,10 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LinkedIn AI/ML Auto-Poster</title>
+    <title>AutoPost AI - LinkedIn Content Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg: #f0f2f5;
+            --bg-alt: #e4e7ec;
+            --surface: #ffffff;
+            --surface-hover: #f8fafc;
+            --text: #0f172a;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --border: #e2e8f0;
+            --border-hover: #cbd5e1;
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #eef2ff;
+            --primary-glow: rgba(99, 102, 241, 0.25);
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --error: #ef4444;
+            --error-light: #fee2e2;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+            --radius: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg: #0c1222;
+            --bg-alt: #111827;
+            --surface: #1e293b;
+            --surface-hover: #283548;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #334155;
+            --border-hover: #475569;
+            --primary-light: rgba(99, 102, 241, 0.15);
+            --primary-glow: rgba(99, 102, 241, 0.3);
+            --success-light: rgba(16, 185, 129, 0.15);
+            --warning-light: rgba(245, 158, 11, 0.15);
+            --error-light: rgba(239, 68, 68, 0.15);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+            --shadow: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.3);
+            --shadow-xl: 0 20px 25px rgba(0,0,0,0.4);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,506 +68,1301 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
+            transition: background var(--transition), color var(--transition);
+            -webkit-font-smoothing: antialiased;
         }
 
-        .container {
+        /* ===== HEADER ===== */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: background var(--transition), border-color var(--transition);
+        }
+
+        .header-inner {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 40px;
-        }
-
-        .controls {
             display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+            font-weight: 800;
+            box-shadow: 0 2px 8px var(--primary-glow);
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .logo-text span {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-badges {
+            display: flex;
+            gap: 8px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            background: var(--bg);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .status-badge .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-badge .dot.green { background: var(--success); box-shadow: 0 0 6px rgba(16,185,129,0.5); }
+        .status-badge .dot.red { background: var(--error); box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+        .status-badge .dot.loading { background: var(--warning); animation: pulse-dot 1.5s infinite; }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .theme-toggle {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all var(--transition);
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        /* ===== HERO SECTION ===== */
+        .hero {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .hero h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            max-width: 560px;
+            margin: 0 auto;
+        }
+
+        /* ===== CONTROLS PANEL ===== */
+        .controls-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow-sm);
+            transition: background var(--transition), border-color var(--transition);
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
             flex-wrap: wrap;
         }
 
-        .btn {
-            padding: 15px 30px;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
+        .control-group {
             display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper select {
+            appearance: none;
+            padding: 10px 36px 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 500;
+            background: var(--bg);
+            color: var(--text);
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: inherit;
+        }
+
+        .select-wrapper select:hover { border-color: var(--primary); }
+        .select-wrapper select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+
+        .select-wrapper::after {
+            content: "";
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid var(--text-secondary);
+            pointer-events: none;
+        }
+
+        /* Topic chips */
+        .topics-container {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .topic-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text-secondary);
+            transition: all var(--transition);
+            user-select: none;
+        }
+
+        .topic-chip:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .topic-chip.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .topic-chip.active:hover {
+            background: var(--primary-dark);
+            color: white;
+        }
+
+        .generate-area {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            margin-left: auto;
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-success {
-            background: #10b981;
-            color: white;
-        }
-
-        .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.4);
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            border: none;
+            transition: all var(--transition);
+            white-space: nowrap;
         }
 
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-            transform: none;
+            transform: none !important;
         }
 
-        .status {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #7c3aed);
+            color: white;
+            box-shadow: 0 2px 8px var(--primary-glow);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px var(--primary-glow);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 8px 12px;
+        }
+
+        .btn-ghost:hover:not(:disabled) {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .btn-sm {
+            padding: 8px 14px;
+            font-size: 13px;
+        }
+
+        .btn-lg {
+            padding: 14px 28px;
+            font-size: 15px;
+        }
+
+        .btn .icon {
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        /* ===== LOADING STATE ===== */
+        .loading-container {
             display: none;
+            padding: 60px 24px;
+            text-align: center;
         }
 
-        .status.success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #10b981;
+        .loading-container.visible {
+            display: block;
+            animation: fadeIn 0.3s ease;
         }
 
-        .status.error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #ef4444;
+        .loading-bar-track {
+            width: 240px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin: 0 auto 24px;
+            overflow: hidden;
         }
 
-        .status.info {
-            background: #dbeafe;
-            color: #1e40af;
-            border: 1px solid #3b82f6;
+        .loading-bar {
+            height: 100%;
+            width: 40%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7);
+            border-radius: 2px;
+            animation: loadingSlide 1.5s ease-in-out infinite;
         }
 
+        @keyframes loadingSlide {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(350%); }
+        }
+
+        .loading-text {
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .loading-sub {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 6px;
+        }
+
+        /* ===== SKELETON LOADER ===== */
+        .skeleton-cards {
+            display: none;
+            gap: 20px;
+            margin-top: 24px;
+        }
+
+        .skeleton-cards.visible {
+            display: grid;
+        }
+
+        .skeleton-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            animation: skeleton-pulse 1.8s ease-in-out infinite;
+        }
+
+        .skeleton-line {
+            height: 14px;
+            background: var(--bg-alt);
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        .skeleton-line.w-60 { width: 60%; }
+        .skeleton-line.w-40 { width: 40%; }
+        .skeleton-line.w-80 { width: 80%; }
+        .skeleton-line.w-full { width: 100%; }
+        .skeleton-line.h-lg { height: 120px; }
+
+        @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* ===== POSTS CONTAINER ===== */
         .posts-container {
             display: grid;
-            gap: 20px;
+            gap: 24px;
         }
 
+        /* ===== POST CARD ===== */
         .post-card {
-            border: 2px solid #e5e7eb;
-            border-radius: 15px;
-            padding: 25px;
-            background: #f9fafb;
-            transition: all 0.3s ease;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: all var(--transition);
+            animation: slideUp 0.4s ease forwards;
+            opacity: 0;
         }
 
         .post-card:hover {
-            border-color: #667eea;
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.1);
+            box-shadow: var(--shadow-md);
+            border-color: var(--border-hover);
         }
 
-        .post-header {
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .post-card-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
-            align-items: start;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
+            align-items: flex-start;
+            gap: 16px;
         }
 
-        .article-info {
+        .article-meta {
             flex: 1;
+            min-width: 0;
         }
 
-        .article-info h3 {
-            color: #1f2937;
-            margin-bottom: 5px;
-            font-size: 1.2em;
+        .article-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+            line-height: 1.4;
         }
 
-        .article-info p {
-            color: #6b7280;
-            font-size: 0.9em;
-        }
-
-        .post-content {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            border: 1px solid #e5e7eb;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            max-height: 500px;
-            overflow-y: auto;
-            margin-bottom: 15px;
-            line-height: 1.6;
-        }
-
-        .post-actions {
+        .article-source {
+            font-size: 13px;
+            color: var(--text-secondary);
             display: flex;
-            gap: 10px;
+            align-items: center;
+            gap: 8px;
             flex-wrap: wrap;
         }
 
-        .btn-small {
-            padding: 10px 20px;
-            font-size: 14px;
+        .article-source a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
         }
 
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 40px;
+        .article-source a:hover {
+            text-decoration: underline;
         }
 
-        .spinner {
-            border: 4px solid #f3f4f6;
-            border-top: 4px solid #667eea;
+        .source-dot {
+            width: 3px;
+            height: 3px;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            background: var(--text-muted);
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .config-status {
-            background: #f3f4f6;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
+        .post-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--primary-light);
+            color: var(--primary);
             display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* Scoring Section */
+        .scoring-section {
+            padding: 16px 24px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
             gap: 20px;
             flex-wrap: wrap;
         }
 
-        .status-item {
+        .score-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .score-ring {
+            width: 48px;
+            height: 48px;
+            position: relative;
+        }
+
+        .score-ring svg {
+            width: 48px;
+            height: 48px;
+            transform: rotate(-90deg);
+        }
+
+        .score-ring .track {
+            fill: none;
+            stroke: var(--border);
+            stroke-width: 4;
+        }
+
+        .score-ring .fill {
+            fill: none;
+            stroke-width: 4;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.8s ease;
+        }
+
+        .score-ring .value {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .score-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .score-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .score-priority {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .score-recommendation {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-left: auto;
+            max-width: 280px;
+            text-align: right;
+        }
+
+        /* Post Content */
+        .post-content-wrapper {
+            padding: 24px;
+        }
+
+        .post-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.7;
+            font-size: 14px;
+            color: var(--text);
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .post-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .post-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .post-content::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .post-content-edit {
+            width: 100%;
+            min-height: 300px;
+            padding: 16px;
+            border: 2px solid var(--primary);
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.7;
+            resize: vertical;
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+            display: none;
+        }
+
+        .post-content-edit:focus {
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .char-count {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .char-count .count {
+            font-weight: 600;
+        }
+
+        .char-count .optimal {
+            color: var(--success);
+        }
+
+        .char-count .warning {
+            color: var(--warning);
+        }
+
+        .char-count .danger {
+            color: var(--error);
+        }
+
+        /* Post Actions */
+        .post-actions {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
             display: flex;
             align-items: center;
             gap: 8px;
+            flex-wrap: wrap;
         }
 
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
+        .actions-right {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
         }
 
-        .status-dot.green {
-            background: #10b981;
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 80px 24px;
+            color: var(--text-secondary);
         }
 
-        .status-dot.red {
-            background: #ef4444;
+        .empty-state .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
         }
 
-        .num-posts-select {
-            padding: 15px;
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
-            font-size: 16px;
-            background: white;
+        .empty-state h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        /* ===== TOAST NOTIFICATIONS ===== */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            border-radius: var(--radius-sm);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-lg);
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 300px;
+            max-width: 420px;
+            animation: toastIn 0.3s ease;
+            transition: all var(--transition);
+        }
+
+        .toast.removing {
+            animation: toastOut 0.3s ease forwards;
+        }
+
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--error); }
+        .toast.info { border-left: 4px solid var(--primary); }
+
+        .toast .toast-icon { font-size: 18px; flex-shrink: 0; }
+        .toast .toast-message { flex: 1; color: var(--text); }
+        .toast .toast-close {
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 18px;
+            line-height: 1;
+            padding: 2px;
+        }
+        .toast .toast-close:hover { color: var(--text); }
+
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(40px); }
+        }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            text-align: center;
+            padding: 32px 24px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .header-inner { height: 56px; }
+            .status-badges { display: none; }
+            .hero h1 { font-size: 1.5rem; }
+            .hero p { font-size: 0.95rem; }
+            .controls-row { flex-direction: column; align-items: stretch; }
+            .generate-area { margin-left: 0; flex-direction: column; }
+            .generate-area .btn { width: 100%; }
+            .topics-container { min-width: unset; }
+            .main { padding: 20px 16px; }
+            .controls-panel { padding: 16px; }
+            .post-card-header { flex-direction: column; gap: 8px; }
+            .scoring-section { flex-direction: column; align-items: flex-start; }
+            .score-recommendation { margin-left: 0; text-align: left; max-width: unset; }
+            .post-actions { flex-direction: column; }
+            .actions-right { margin-left: 0; width: 100%; }
+            .actions-right .btn { flex: 1; }
+            .toast { min-width: unset; max-width: calc(100vw - 48px); }
+            .toast-container { left: 24px; right: 24px; }
+        }
+
+        @media (max-width: 480px) {
+            .logo-text { font-size: 15px; }
+            .hero h1 { font-size: 1.3rem; }
+            .post-content-wrapper { padding: 16px; }
+            .post-actions { padding: 12px 16px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🚀 LinkedIn AI/ML Auto-Poster</h1>
-            <p>Generate, Review & Post Engaging LinkedIn Content</p>
-        </div>
-
-        <div class="content">
-            <div class="config-status" id="configStatus">
-                <div class="status-item">
-                    <span class="status-dot" id="openaiStatus"></span>
-                    <span>OpenAI API</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-dot" id="linkedinStatus"></span>
-                    <span>LinkedIn API</span>
-                </div>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo">
+                <div class="logo-icon">A</div>
+                <div class="logo-text">AutoPost <span>AI</span></div>
             </div>
-
-            <div class="status" id="statusMessage"></div>
-
-            <div class="controls">
-                <select class="num-posts-select" id="numPosts">
-                    <option value="1">1 Post</option>
-                    <option value="2">2 Posts</option>
-                    <option value="3">3 Posts</option>
-                </select>
-                <button class="btn btn-primary" id="generateBtn" onclick="generatePosts()">
-                    <span>✨</span>
-                    Generate Post
+            <div class="header-actions">
+                <div class="status-badges">
+                    <div class="status-badge">
+                        <span class="dot loading" id="openaiDot"></span>
+                        <span>OpenAI</span>
+                    </div>
+                    <div class="status-badge">
+                        <span class="dot loading" id="linkedinDot"></span>
+                        <span>LinkedIn</span>
+                    </div>
+                </div>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" aria-label="Toggle theme">
+                    <span id="themeIcon">&#9790;</span>
                 </button>
             </div>
-
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Generating your post...</p>
-            </div>
-
-            <div class="posts-container" id="postsContainer"></div>
         </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Hero -->
+        <div class="hero">
+            <h1>Generate <span>AI-Powered</span> LinkedIn Posts</h1>
+            <p>Searches the web for the latest AI news and crafts engaging, professional LinkedIn content automatically.</p>
+        </div>
+
+        <!-- Controls Panel -->
+        <div class="controls-panel">
+            <div class="controls-row" style="margin-bottom: 16px;">
+                <div class="control-group">
+                    <span class="control-label">Topics</span>
+                </div>
+            </div>
+            <div class="controls-row" style="margin-bottom: 20px;">
+                <div class="topics-container" id="topicsContainer">
+                    <button class="topic-chip active" data-topic="OpenAI">OpenAI</button>
+                    <button class="topic-chip active" data-topic="NVIDIA">NVIDIA</button>
+                    <button class="topic-chip active" data-topic="Google AI">Google AI</button>
+                    <button class="topic-chip active" data-topic="Anthropic">Anthropic</button>
+                    <button class="topic-chip active" data-topic="Meta AI">Meta AI</button>
+                    <button class="topic-chip" data-topic="Microsoft AI">Microsoft AI</button>
+                    <button class="topic-chip" data-topic="Apple AI">Apple AI</button>
+                    <button class="topic-chip" data-topic="AI models">AI Models</button>
+                    <button class="topic-chip" data-topic="LLM">LLMs</button>
+                    <button class="topic-chip" data-topic="AI startups">AI Startups</button>
+                    <button class="topic-chip" data-topic="AI regulation">AI Regulation</button>
+                    <button class="topic-chip" data-topic="robotics AI">Robotics</button>
+                </div>
+            </div>
+            <div class="controls-row">
+                <div class="control-group">
+                    <span class="control-label">Posts</span>
+                    <div class="select-wrapper">
+                        <select id="numPosts">
+                            <option value="1">1 Post</option>
+                            <option value="2">2 Posts</option>
+                            <option value="3" selected>3 Posts</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="generate-area">
+                    <button class="btn btn-primary btn-lg" id="generateBtn" onclick="generatePosts()">
+                        <span class="icon">&#10024;</span>
+                        Generate Posts
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-container" id="loadingContainer">
+            <div class="loading-bar-track">
+                <div class="loading-bar"></div>
+            </div>
+            <div class="loading-text">Searching for the latest AI news...</div>
+            <div class="loading-sub">This may take 15-30 seconds</div>
+        </div>
+
+        <!-- Skeleton Cards -->
+        <div class="skeleton-cards" id="skeletonCards">
+            <div class="skeleton-card">
+                <div class="skeleton-line w-60"></div>
+                <div class="skeleton-line w-40"></div>
+                <div class="skeleton-line w-full h-lg" style="margin-top: 16px;"></div>
+                <div class="skeleton-line w-80" style="margin-top: 16px;"></div>
+            </div>
+            <div class="skeleton-card">
+                <div class="skeleton-line w-80"></div>
+                <div class="skeleton-line w-40"></div>
+                <div class="skeleton-line w-full h-lg" style="margin-top: 16px;"></div>
+                <div class="skeleton-line w-60" style="margin-top: 16px;"></div>
+            </div>
+        </div>
+
+        <!-- Posts -->
+        <div class="posts-container" id="postsContainer">
+            <div class="empty-state" id="emptyState">
+                <div class="empty-icon">&#128196;</div>
+                <h3>No posts generated yet</h3>
+                <p>Select your topics, choose the number of posts, and click Generate to get started.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <div class="footer">
+        Powered by <a href="https://openai.com" target="_blank" rel="noopener">OpenAI Web Search</a> &middot; AutoPost AI
     </div>
 
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <script>
-        // Global variable to store posts data
         let postsData = [];
 
-        // Check status on load
-        window.addEventListener('load', checkStatus);
+        // ===== Theme =====
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.getElementById('themeIcon').innerHTML = next === 'dark' ? '&#9788;' : '&#9790;';
+        }
 
+        (function initTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+                document.getElementById('themeIcon').innerHTML = saved === 'dark' ? '&#9788;' : '&#9790;';
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.getElementById('themeIcon').innerHTML = '&#9788;';
+            }
+        })();
+
+        // ===== Topics =====
+        document.querySelectorAll('.topic-chip').forEach(chip => {
+            chip.addEventListener('click', () => chip.classList.toggle('active'));
+        });
+
+        function getSelectedTopics() {
+            return Array.from(document.querySelectorAll('.topic-chip.active'))
+                        .map(c => c.dataset.topic);
+        }
+
+        // ===== Status Check =====
         async function checkStatus() {
             try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
-                
+                const res = await fetch('/api/status');
+                const data = await res.json();
                 if (data.initialized) {
-                    document.getElementById('openaiStatus').className = 
-                        data.config.openai_configured ? 'status-dot green' : 'status-dot red';
-                    document.getElementById('linkedinStatus').className = 
-                        data.config.linkedin_configured ? 'status-dot green' : 'status-dot red';
+                    setDot('openaiDot', data.config.openai_configured);
+                    setDot('linkedinDot', data.config.linkedin_configured);
                 } else {
-                    showStatus('error', 'Agent not initialized. Check your configuration.');
+                    setDot('openaiDot', false);
+                    setDot('linkedinDot', false);
+                    showToast('error', 'Agent not initialized. Check configuration.');
                 }
-            } catch (error) {
-                console.error('Error checking status:', error);
+            } catch (e) {
+                setDot('openaiDot', false);
+                setDot('linkedinDot', false);
             }
         }
 
+        function setDot(id, ok) {
+            const dot = document.getElementById(id);
+            dot.className = 'dot ' + (ok ? 'green' : 'red');
+        }
+
+        window.addEventListener('load', checkStatus);
+
+        // ===== Generate Posts =====
         async function generatePosts() {
             const numPosts = parseInt(document.getElementById('numPosts').value);
-            const generateBtn = document.getElementById('generateBtn');
-            const loading = document.getElementById('loading');
-            const postsContainer = document.getElementById('postsContainer');
+            const topics = getSelectedTopics();
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loadingContainer');
+            const skeleton = document.getElementById('skeletonCards');
+            const container = document.getElementById('postsContainer');
+            const empty = document.getElementById('emptyState');
 
-            // Show loading
-            generateBtn.disabled = true;
-            loading.style.display = 'block';
-            postsContainer.innerHTML = '';
-            hideStatus();
+            if (topics.length === 0) {
+                showToast('error', 'Please select at least one topic.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="icon">&#9203;</span> Searching...';
+            loading.classList.add('visible');
+            skeleton.classList.add('visible');
+            container.innerHTML = '';
+            if (empty) empty.style.display = 'none';
 
             try {
-                const response = await fetch('/api/generate', {
+                const res = await fetch('/api/generate', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ num_posts: numPosts })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ num_posts: numPosts, topics: topics })
                 });
 
-                const data = await response.json();
+                const data = await res.json();
 
                 if (data.success) {
-                    displayPosts(data.posts);
-                    showStatus('success', `Successfully generated ${data.posts.length} post(s)!`);
+                    postsData = data.posts;
+                    renderPosts(data.posts);
+                    showToast('success', `Generated ${data.posts.length} post${data.posts.length > 1 ? 's' : ''} successfully!`);
                 } else {
-                    showStatus('error', data.error || 'Failed to generate posts');
+                    showToast('error', data.error || 'Failed to generate posts.');
                 }
-            } catch (error) {
-                showStatus('error', 'Error generating posts: ' + error.message);
+            } catch (err) {
+                showToast('error', 'Network error: ' + err.message);
             } finally {
-                generateBtn.disabled = false;
-                loading.style.display = 'none';
+                btn.disabled = false;
+                btn.innerHTML = '<span class="icon">&#10024;</span> Generate Posts';
+                loading.classList.remove('visible');
+                skeleton.classList.remove('visible');
             }
         }
 
-        function displayPosts(posts) {
+        // ===== Render Posts =====
+        function renderPosts(posts) {
             const container = document.getElementById('postsContainer');
             container.innerHTML = '';
-            
-            // Store posts data globally for button handlers
-            postsData = posts;
 
-            posts.forEach((post, index) => {
+            posts.forEach((post, idx) => {
                 const card = document.createElement('div');
                 card.className = 'post-card';
-                
-                // Build scoring HTML if available
+                card.style.animationDelay = `${idx * 0.1}s`;
+
+                const charCount = post.content.length;
+                const charClass = charCount >= 800 && charCount <= 2000 ? 'optimal' : charCount > 2000 ? 'warning' : 'danger';
+
                 let scoringHTML = '';
                 if (post.scoring) {
-                    const score = post.scoring.score;
-                    const percentage = post.scoring.percentage;
-                    const priority = post.scoring.priority;
-                    const recommendation = post.scoring.recommendation;
-                    const reasons = post.scoring.reasons || [];
-                    
-                    // Determine color based on score
-                    let scoreColor = '#ef4444'; // red
-                    if (score >= 60) scoreColor = '#10b981'; // green
-                    else if (score >= 40) scoreColor = '#f59e0b'; // yellow
-                    
+                    const s = post.scoring;
+                    const pct = Math.round(s.percentage);
+                    const circumference = 2 * Math.PI * 18;
+                    const offset = circumference - (pct / 100) * circumference;
+                    const color = s.score >= 60 ? 'var(--success)' : s.score >= 40 ? 'var(--warning)' : 'var(--error)';
+
                     scoringHTML = `
-                        <div class="scoring-section" style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid ${scoreColor};">
-                            <h4 style="margin: 0 0 10px 0; color: #1f2937;">📊 Value Scoring</h4>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                                <div>
-                                    <strong style="color: ${scoreColor}; font-size: 24px;">${score}/110</strong>
-                                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 14px;">${percentage}% Score</p>
+                        <div class="scoring-section">
+                            <div class="score-badge">
+                                <div class="score-ring">
+                                    <svg viewBox="0 0 40 40">
+                                        <circle class="track" cx="20" cy="20" r="18"/>
+                                        <circle class="fill" cx="20" cy="20" r="18"
+                                            stroke="${color}"
+                                            stroke-dasharray="${circumference}"
+                                            stroke-dashoffset="${offset}"/>
+                                    </svg>
+                                    <div class="value" style="color:${color}">${s.score}</div>
                                 </div>
-                                <div>
-                                    <strong style="color: #1f2937;">Priority:</strong>
-                                    <p style="margin: 5px 0 0 0; color: #6b7280;">${priority}</p>
-                                </div>
-                                <div>
-                                    <strong style="color: #1f2937;">Recommendation:</strong>
-                                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 13px;">${recommendation}</p>
+                                <div class="score-details">
+                                    <span class="score-label">Value Score / 110</span>
+                                    <span class="score-priority" style="color:${color}">${s.priority}</span>
                                 </div>
                             </div>
-                            ${reasons.length > 0 ? `
-                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
-                                    <strong style="color: #1f2937; font-size: 13px;">Why:</strong>
-                                    <p style="margin: 5px 0 0 0; color: #6b7280; font-size: 12px;">${reasons.slice(0, 3).join(' • ')}</p>
-                                </div>
-                            ` : ''}
-                        </div>
-                    `;
+                            <div class="score-recommendation">${esc(s.recommendation)}</div>
+                        </div>`;
                 }
-                
+
                 card.innerHTML = `
-                    <div class="post-header">
-                        <div class="article-info">
-                            <h3>${escapeHtml(post.article.title)}</h3>
-                            <p>Source: ${escapeHtml(post.article.source)}</p>
-                            ${post.article.url ? `<p><a href="${post.article.url}" target="_blank">View Article</a></p>` : ''}
+                    <div class="post-card-header">
+                        <div class="article-meta">
+                            <div class="article-title">${esc(post.article.title)}</div>
+                            <div class="article-source">
+                                <span>${esc(post.article.source)}</span>
+                                ${post.article.url ? `<span class="source-dot"></span><a href="${esc(post.article.url)}" target="_blank" rel="noopener">View article &#8599;</a>` : ''}
+                            </div>
                         </div>
+                        <div class="post-number">${idx + 1}</div>
                     </div>
                     ${scoringHTML}
-                    <div class="post-content">${escapeHtml(post.content)}</div>
-                    <div class="post-actions">
-                        <button class="btn btn-success btn-small" data-post-index="${index}" onclick="postToLinkedIn(event, this)">
-                            <span>📤</span>
-                            Post to LinkedIn
-                        </button>
-                        <button class="btn btn-primary btn-small" data-post-index="${index}" onclick="copyToClipboard(event, this)">
-                            <span>📋</span>
-                            Copy Text
-                        </button>
+                    <div class="post-content-wrapper">
+                        <div class="post-content" id="postContent${idx}">${esc(post.content)}</div>
+                        <textarea class="post-content-edit" id="postEdit${idx}" style="display:none;">${esc(post.content)}</textarea>
+                        <div class="char-count">
+                            <span>Characters: <span class="count ${charClass}" id="charCount${idx}">${charCount}</span> / 3000</span>
+                            <span class="${charClass}">${charCount >= 800 && charCount <= 2000 ? 'Optimal length' : charCount > 2000 ? 'Consider trimming' : 'Consider expanding'}</span>
+                        </div>
                     </div>
-                `;
+                    <div class="post-actions">
+                        <button class="btn btn-outline btn-sm" onclick="toggleEdit(${idx})">
+                            <span class="icon" id="editIcon${idx}">&#9998;</span>
+                            <span id="editLabel${idx}">Edit</span>
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="regeneratePost(${idx})">
+                            <span class="icon">&#8635;</span>
+                            Regenerate
+                        </button>
+                        <div class="actions-right">
+                            <button class="btn btn-outline btn-sm" onclick="copyPost(${idx})">
+                                <span class="icon">&#128203;</span>
+                                Copy
+                            </button>
+                            <button class="btn btn-success btn-sm" onclick="postToLinkedIn(${idx})">
+                                <span class="icon">&#128228;</span>
+                                Post to LinkedIn
+                            </button>
+                        </div>
+                    </div>`;
+
                 container.appendChild(card);
+
+                // Wire up textarea for live char count
+                const textarea = document.getElementById(`postEdit${idx}`);
+                textarea.addEventListener('input', () => updateCharCount(idx));
             });
         }
 
-        async function postToLinkedIn(event, button) {
-            if (!confirm('Are you sure you want to post this to LinkedIn?')) {
-                return;
+        // ===== Edit Toggle =====
+        function toggleEdit(idx) {
+            const content = document.getElementById(`postContent${idx}`);
+            const edit = document.getElementById(`postEdit${idx}`);
+            const icon = document.getElementById(`editIcon${idx}`);
+            const label = document.getElementById(`editLabel${idx}`);
+
+            if (edit.style.display === 'none') {
+                edit.value = postsData[idx].content;
+                edit.style.display = 'block';
+                content.style.display = 'none';
+                icon.innerHTML = '&#10003;';
+                label.textContent = 'Save';
+                edit.focus();
+            } else {
+                postsData[idx].content = edit.value;
+                content.textContent = edit.value;
+                edit.style.display = 'none';
+                content.style.display = 'block';
+                icon.innerHTML = '&#9998;';
+                label.textContent = 'Edit';
+                updateCharCount(idx);
+                showToast('success', 'Post content saved.');
             }
+        }
 
-            const btn = button || event.target.closest('button');
-            const index = parseInt(btn.getAttribute('data-post-index'));
-            
-            if (isNaN(index) || index < 0 || index >= postsData.length) {
-                showStatus('error', 'Post data not found');
-                return;
-            }
+        function updateCharCount(idx) {
+            const edit = document.getElementById(`postEdit${idx}`);
+            const counter = document.getElementById(`charCount${idx}`);
+            const len = edit.value.length;
+            counter.textContent = len;
+            counter.className = 'count ' + (len >= 800 && len <= 2000 ? 'optimal' : len > 2000 ? 'warning' : 'danger');
+        }
 
-            const postData = postsData[index];
-
-            btn.disabled = true;
-            btn.innerHTML = '<span>⏳</span> Posting...';
+        // ===== Regenerate =====
+        async function regeneratePost(idx) {
+            const post = postsData[idx];
+            const card = document.querySelectorAll('.post-card')[idx];
+            const contentEl = card.querySelector('.post-content');
+            const origText = contentEl.textContent;
+            contentEl.textContent = 'Regenerating...';
 
             try {
-                const response = await fetch('/api/post', {
+                const res = await fetch('/api/regenerate', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        content: postData.content,
-                        article_url: postData.article.url
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ article: post.article })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    postsData[idx].content = data.content;
+                    contentEl.textContent = data.content;
+                    const counter = document.getElementById(`charCount${idx}`);
+                    counter.textContent = data.content.length;
+                    showToast('success', 'Post regenerated!');
+                } else {
+                    contentEl.textContent = origText;
+                    showToast('error', data.error || 'Regeneration failed.');
+                }
+            } catch (e) {
+                contentEl.textContent = origText;
+                showToast('error', 'Network error: ' + e.message);
+            }
+        }
+
+        // ===== Copy =====
+        function copyPost(idx) {
+            const text = postsData[idx].content;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('success', 'Copied to clipboard!');
+            }).catch(() => {
+                // Fallback
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast('success', 'Copied to clipboard!');
+            });
+        }
+
+        // ===== Post to LinkedIn =====
+        async function postToLinkedIn(idx) {
+            if (!confirm('Post this content to LinkedIn?')) return;
+
+            const post = postsData[idx];
+            const btns = document.querySelectorAll('.post-card')[idx].querySelectorAll('.btn-success');
+            const btn = btns[0];
+            const origHTML = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="icon">&#9203;</span> Posting...';
+
+            try {
+                const res = await fetch('/api/post', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: post.content, article_url: post.article.url })
                 });
 
-                const data = await response.json();
-
+                const data = await res.json();
                 if (data.success) {
-                    showStatus('success', data.message || 'Post successfully published to LinkedIn!');
-                    btn.innerHTML = '<span>✅</span> Posted!';
+                    showToast('success', 'Successfully posted to LinkedIn!');
+                    btn.innerHTML = '<span class="icon">&#10003;</span> Posted!';
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline');
                 } else {
-                    showStatus('error', data.error || 'Failed to post to LinkedIn');
+                    showToast('error', data.error || 'Failed to post.');
                     btn.disabled = false;
-                    btn.innerHTML = '<span>📤</span> Post to LinkedIn';
+                    btn.innerHTML = origHTML;
                 }
-            } catch (error) {
-                showStatus('error', 'Error posting to LinkedIn: ' + error.message);
+            } catch (e) {
+                showToast('error', 'Network error: ' + e.message);
                 btn.disabled = false;
-                btn.innerHTML = '<span>📤</span> Post to LinkedIn';
+                btn.innerHTML = origHTML;
             }
         }
 
-        function copyToClipboard(event, button) {
-            const btn = button || event.target.closest('button');
-            const index = parseInt(btn.getAttribute('data-post-index'));
-            const postCards = document.querySelectorAll('.post-card');
-            
-            if (index >= 0 && index < postCards.length) {
-                const postContent = postCards[index].querySelector('.post-content');
-                if (postContent) {
-                    const textToCopy = postContent.textContent || postContent.innerText;
-                    navigator.clipboard.writeText(textToCopy).then(() => {
-                        showStatus('success', 'Post content copied to clipboard!');
-                    }).catch(err => {
-                        showStatus('error', 'Failed to copy to clipboard: ' + err.message);
-                    });
-                } else {
-                    showStatus('error', 'Post content not found');
+        // ===== Toast Notifications =====
+        function showToast(type, message) {
+            const container = document.getElementById('toastContainer');
+            const icons = { success: '&#10004;', error: '&#10006;', info: '&#8505;' };
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-message">${esc(message)}</span>
+                <span class="toast-close" onclick="this.parentElement.classList.add('removing'); setTimeout(() => this.parentElement.remove(), 300);">&times;</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('removing');
+                    setTimeout(() => toast.remove(), 300);
                 }
-            } else {
-                showStatus('error', 'Invalid post index');
-            }
+            }, 5000);
         }
 
-        function showStatus(type, message) {
-            const statusEl = document.getElementById('statusMessage');
-            statusEl.className = `status ${type}`;
-            statusEl.textContent = message;
-            statusEl.style.display = 'block';
-        }
-
-        function hideStatus() {
-            document.getElementById('statusMessage').style.display = 'none';
-        }
-
-        function escapeHtml(text) {
+        // ===== Utilities =====
+        function esc(str) {
+            if (!str) return '';
             const div = document.createElement('div');
-            div.textContent = text;
+            div.textContent = str;
             return div.innerHTML;
         }
     </script>
 </body>
 </html>
-

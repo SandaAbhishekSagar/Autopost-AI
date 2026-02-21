@@ -5,10 +5,10 @@ Now powered by OpenAI web search instead of traditional news scraping.
 """
 
 from flask import Flask, render_template, request, jsonify
-import yaml
 import logging
 import os
 from agent import LinkedInAIAgent
+from image_helper import get_image_for_post
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -103,11 +103,12 @@ def generate_post():
 
 @app.route('/api/post', methods=['POST'])
 def post_to_linkedin():
-    """Post content to LinkedIn"""
+    """Post content to LinkedIn with optional image"""
     try:
         data = request.json or {}
         post_content = data.get('content', '')
-        article_url = data.get('article_url', '')
+        article_url = data.get('article_url', '') or None
+        article_title = data.get('article_title', '')
 
         if not post_content:
             return jsonify({'error': 'Post content is required'}), 400
@@ -116,9 +117,25 @@ def post_to_linkedin():
             if not init_agent():
                 return jsonify({'error': 'Failed to initialize agent.'}), 500
 
+        # Fetch or generate image for the post (if enabled)
+        image = None
+        include_image = agent.config.get('post', {}).get('include_image', True)
+        openai_key = agent.config.get('post_generation', {}).get('openai_api_key')
+        if include_image:
+            try:
+                image = get_image_for_post(
+                    article_url=article_url,
+                    article_title=article_title,
+                    post_content=post_content,
+                    openai_api_key=openai_key
+                )
+            except Exception as e:
+                logger.warning(f"Could not get image for post: {e}")
+
         success = agent.linkedin_poster.post_to_linkedin(
             post_content=post_content,
-            article_url=article_url if article_url else None
+            article_url=article_url,
+            image=image
         )
 
         if success:

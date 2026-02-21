@@ -1,12 +1,11 @@
 """
 LinkedIn API Integration Module
-Handles posting to LinkedIn using the LinkedIn API
+Handles posting to LinkedIn with optional image attachment
 """
 
 import requests
 import logging
-from typing import Dict, Optional
-import time
+from typing import Dict, Optional, Tuple
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,7 +18,8 @@ class LinkedInPoster:
         self.client_secret = config.get('client_secret')
         self.access_token = config.get('access_token')
         self.base_url = "https://api.linkedin.com/v2"
-        
+        self.rest_url = "https://api.linkedin.com/rest"
+
         if not self.access_token:
             raise ValueError("LinkedIn access token is required in config.yaml")
 
@@ -30,8 +30,6 @@ class LinkedInPoster:
                 'Authorization': f'Bearer {self.access_token}',
                 'Content-Type': 'application/json'
             }
-            
-            # Get user's URN (Universal Resource Name)
             response = requests.get(
                 f"{self.base_url}/userinfo",
                 headers=headers,
@@ -43,149 +41,278 @@ class LinkedInPoster:
             logger.error(f"Error getting user profile: {e}")
             return None
 
-    def post_to_linkedin(self, post_content: str, article_url: Optional[str] = None) -> bool:
+    def post_to_linkedin(
+        self,
+        post_content: str,
+        article_url: Optional[str] = None,
+        image: Optional[Tuple[bytes, str]] = None
+    ) -> bool:
         """
-        Post content to LinkedIn
-        
+        Post content to LinkedIn, optionally with an image.
+
         Args:
             post_content: The text content of the post
             article_url: Optional URL to include in the post
-        
+            image: Optional (image_bytes, content_type) tuple for post image
+
         Returns:
             bool: True if successful, False otherwise
         """
-        # Try UGC Posts API first (for Community Management API)
-        # Fall back to Share API (for Share on LinkedIn product)
         try:
-            # First, get the user's URN
             person_urn = self._get_person_urn()
             if not person_urn:
                 logger.error("Could not get person URN")
                 return False
-            
-            # Try Share API first (works with "Share on LinkedIn" product - most common)
-            # This is what most users will have enabled
-            success = self._post_using_share_api(post_content, article_url)
+
+            # If we have an image, try to upload and post with image
+            asset_urn = None
+            if image:
+                image_bytes, content_type = image
+                asset_urn = self._upload_image(person_urn, image_bytes, content_type)
+                if not asset_urn:
+                    logger.warning("Image upload failed, posting without image")
+
+            if asset_urn:
+                success = self._post_with_image(post_content, article_url, person_urn, asset_urn)
+            else:
+                success = self._post_using_share_api(post_content, article_url)
+
             if success:
                 return True
-            
-            # Fall back to UGC Posts API (requires Community Management API - more features)
+
             logger.info("Share API failed, trying UGC Posts API...")
-            return self._post_using_ugc_api(post_content, article_url, person_urn)
-                
+            return self._post_using_ugc_api(post_content, article_url, person_urn, asset_urn)
+
         except Exception as e:
             logger.error(f"Error posting to LinkedIn: {e}")
             return False
 
-    def _post_using_ugc_api(self, post_content: str, article_url: Optional[str], person_urn: str) -> bool:
-        """Post using UGC Posts API (requires Community Management API)"""
+    def _upload_image(
+        self,
+        person_urn: str,
+        image_bytes: bytes,
+        content_type: str
+    ) -> Optional[str]:
+        """Register upload, upload image, return asset URN"""
+        try:
+            headers = {
+                'Authorization': f'Bearer {self.access_token}',
+                'Content-Type': 'application/json',
+                'X-Restli-Protocol-Version': '2.0.0',
+                'Linkedin-Version': '202502'
+            }
+
+            # Step 1: Register upload
+            payload = {
+                "registerUploadRequest": {
+                    "owner": person_urn,
+                    "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
+                    "serviceRelationships": [
+                        {"relationshipType": "OWNER", "identifier": "urn:li:userGeneratedContent"}
+                    ],
+                    "supportedUploadMechanism": ["SYNCHRONOUS_UPLOAD"]
+                }
+            }
+
+            resp = requests.post(
+                f"{self.rest_url}/assets?action=registerUpload",
+                headers=headers,
+                json=payload,
+                timeout=15
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+            value = data.get('value', {})
+            upload_mechanism = value.get('uploadMechanism', {})
+            upload_request = upload_mechanism.get('com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest', {})
+            upload_url = upload_request.get('uploadUrl')
+            asset_urn = value.get('asset')
+
+            if not upload_url or not asset_urn:
+                logger.error("Invalid registerUpload response")
+                return None
+
+            # Step 2: Upload image bytes
+            upload_headers = {
+                'Authorization': f'Bearer {self.access_token}',
+            }
+            if content_type:
+                upload_headers['Content-Type'] = content_type
+
+            put_resp = requests.put(upload_url, data=image_bytes, headers=upload_headers, timeout=30)
+            put_resp.raise_for_status()
+
+            logger.info(f"Image uploaded successfully: {asset_urn}")
+            return asset_urn
+
+        except Exception as e:
+            logger.error(f"Image upload failed: {e}")
+            return None
+
+    def _post_with_image(
+        self,
+        post_content: str,
+        article_url: Optional[str],
+        person_urn: str,
+        asset_urn: str
+    ) -> bool:
+        """Post with image using UGC Posts API"""
+        try:
+            if article_url:
+                post_content = f"{post_content}\n\n{article_url}"
+
+            headers = {
+                'Authorization': f'Bearer {self.access_token}',
+                'Content-Type': 'application/json',
+                'X-Restli-Protocol-Version': '2.0.0'
+            }
+
+            payload = {
+                "author": person_urn,
+                "lifecycleState": "PUBLISHED",
+                "specificContent": {
+                    "com.linkedin.ugc.ShareContent": {
+                        "shareCommentary": {"text": post_content},
+                        "shareMediaCategory": "IMAGE",
+                        "media": [
+                            {
+                                "status": "READY",
+                                "media": asset_urn
+                            }
+                        ]
+                    }
+                },
+                "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
+            }
+
+            response = requests.post(
+                f"{self.base_url}/ugcPosts",
+                headers=headers,
+                json=payload,
+                timeout=15
+            )
+
+            if response.status_code in [200, 201]:
+                logger.info("Successfully posted to LinkedIn with image!")
+                return True
+            logger.warning(f"UGC post with image failed: {response.status_code} - {response.text}")
+            return False
+
+        except Exception as e:
+            logger.error(f"Post with image failed: {e}")
+            return False
+
+    def _post_using_ugc_api(
+        self,
+        post_content: str,
+        article_url: Optional[str],
+        person_urn: str,
+        asset_urn: Optional[str] = None
+    ) -> bool:
+        """Post using UGC Posts API (ARTICLE or NONE, or IMAGE if asset_urn)"""
         try:
             headers = {
                 'Authorization': f'Bearer {self.access_token}',
                 'Content-Type': 'application/json',
                 'X-Restli-Protocol-Version': '2.0.0'
             }
-            
-            # Build the post payload
+
+            if asset_urn:
+                if article_url:
+                    post_content = f"{post_content}\n\n{article_url}"
+                return self._post_with_image(post_content, article_url, person_urn, asset_urn)
+
+            share_media = "ARTICLE" if article_url else "NONE"
             payload = {
                 "author": person_urn,
                 "lifecycleState": "PUBLISHED",
                 "specificContent": {
                     "com.linkedin.ugc.ShareContent": {
-                        "shareCommentary": {
-                            "text": post_content
-                        },
-                        "shareMediaCategory": "ARTICLE" if article_url else "NONE"
+                        "shareCommentary": {"text": post_content},
+                        "shareMediaCategory": share_media
                     }
                 },
-                "visibility": {
-                    "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-                }
+                "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
             }
-            
-            # Add article URL if provided
+
             if article_url:
                 payload["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [
                     {
                         "status": "READY",
-                        "description": {
-                            "text": "Read the full article"
-                        },
+                        "description": {"text": "Read the full article"},
                         "originalUrl": article_url,
-                        "title": {
-                            "text": "AI/ML News Article"
-                        }
+                        "title": {"text": "AI/ML News Article"}
                     }
                 ]
-            
+
             response = requests.post(
                 f"{self.base_url}/ugcPosts",
                 headers=headers,
                 json=payload,
                 timeout=10
             )
-            
+
             if response.status_code in [200, 201]:
                 logger.info("Successfully posted to LinkedIn using UGC API!")
                 return True
-            else:
-                logger.warning(f"UGC API failed: {response.status_code} - {response.text}")
-                return False
-                
+            logger.warning(f"UGC API failed: {response.status_code} - {response.text}")
+            return False
+
         except Exception as e:
             logger.warning(f"UGC API error: {e}")
             return False
 
-    def _post_using_share_api(self, post_content: str, article_url: Optional[str]) -> bool:
-        """Post using Share API (works with 'Share on LinkedIn' product)"""
+    def _post_using_share_api(
+        self,
+        post_content: str,
+        article_url: Optional[str],
+        asset_urn: Optional[str] = None
+    ) -> bool:
+        """Post using Share API (text only, or with article URL in text)"""
         try:
-            # Get person URN for Share API
             person_urn = self._get_person_urn()
             if not person_urn:
                 return False
-            
+
+            if asset_urn:
+                return self._post_with_image(post_content, article_url, person_urn, asset_urn)
+
             headers = {
                 'Authorization': f'Bearer {self.access_token}',
                 'Content-Type': 'application/json',
                 'X-Restli-Protocol-Version': '2.0.0'
             }
-            
-            # Build share payload (simpler format)
+
             payload = {
                 "author": person_urn,
                 "lifecycleState": "PUBLISHED",
                 "specificContent": {
                     "com.linkedin.ugc.ShareContent": {
-                        "shareCommentary": {
-                            "text": post_content
-                        },
+                        "shareCommentary": {"text": post_content},
                         "shareMediaCategory": "NONE"
                     }
                 },
-                "visibility": {
-                    "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-                }
+                "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"}
             }
-            
-            # For Share API, if we have a URL, append it to the text
+
             if article_url:
                 post_content_with_url = f"{post_content}\n\n{article_url}"
                 payload["specificContent"]["com.linkedin.ugc.ShareContent"]["shareCommentary"]["text"] = post_content_with_url
-            
+
             response = requests.post(
                 f"{self.base_url}/ugcPosts",
                 headers=headers,
                 json=payload,
                 timeout=10
             )
-            
+
             if response.status_code in [200, 201]:
                 logger.info("Successfully posted to LinkedIn using Share API!")
                 return True
-            else:
-                logger.error(f"Failed to post to LinkedIn: {response.status_code} - {response.text}")
-                return False
-                
+            logger.error(f"Failed to post: {response.status_code} - {response.text}")
+            return False
+
         except Exception as e:
             logger.error(f"Share API error: {e}")
             return False
@@ -197,8 +324,6 @@ class LinkedInPoster:
                 'Authorization': f'Bearer {self.access_token}',
                 'Content-Type': 'application/json'
             }
-            
-            # Get user info to extract person ID
             response = requests.get(
                 f"{self.base_url}/userinfo",
                 headers=headers,
@@ -206,38 +331,23 @@ class LinkedInPoster:
             )
             response.raise_for_status()
             user_info = response.json()
-            
-            # Extract sub (user ID) and construct URN
             sub = user_info.get('sub')
             if sub:
-                # URN format: urn:li:person:{id}
                 return f"urn:li:person:{sub}"
-            
-            # Alternative: Try to get from /me endpoint
             response = requests.get(
                 f"{self.base_url}/me",
                 headers=headers,
                 timeout=10
             )
             if response.status_code == 200:
-                data = response.json()
-                id_val = data.get('id')
+                id_val = response.json().get('id')
                 if id_val:
                     return f"urn:li:person:{id_val}"
-            
             return None
-            
         except Exception as e:
             logger.error(f"Error getting person URN: {e}")
             return None
 
     def refresh_access_token(self) -> Optional[str]:
-        """
-        Refresh the access token if needed
-        Note: This requires implementing OAuth flow
-        """
-        # This would require implementing the full OAuth 2.0 flow
-        # For now, users need to manually refresh tokens
-        logger.warning("Token refresh not implemented. Please manually update access_token in config.yaml")
+        logger.warning("Token refresh not implemented. Update access_token in config.yaml")
         return None
-

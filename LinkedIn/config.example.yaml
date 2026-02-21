@@ -56,6 +56,10 @@ news:
   use_multiple_articles: false
   articles_per_post: 3
 
+# Post Settings
+post:
+  include_image: true    # Attach image to LinkedIn posts (og:image from article or DALL-E)
+
 # Post Generation Settings
 post_generation:
   ai_model: "gpt-4"           # Model for writing posts (gpt-4 recommended for quality)

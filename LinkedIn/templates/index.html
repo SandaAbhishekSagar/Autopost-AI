@@ -1313,7 +1313,11 @@
                 const res = await fetch('/api/post', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ content: post.content, article_url: post.article.url })
+                    body: JSON.stringify({
+                        content: post.content,
+                        article_url: post.article.url,
+                        article_title: post.article.title
+                    })
                 });
 
                 const data = await res.json();

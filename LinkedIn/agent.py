@@ -190,9 +190,25 @@ class LinkedInAIAgent:
                 return True
 
             logger.info("Posting to LinkedIn...")
+            image = None
+            include_image = self.config.get('post', {}).get('include_image', True)
+            if include_image:
+                try:
+                    from image_helper import get_image_for_post
+                    openai_key = self.config.get('post_generation', {}).get('openai_api_key')
+                    image = get_image_for_post(
+                        article_url=article.get('url'),
+                        article_title=article.get('title', ''),
+                        post_content=post_content,
+                        openai_api_key=openai_key
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not get image for post: {e}")
+
             success = self.linkedin_poster.post_to_linkedin(
                 post_content=post_content,
-                article_url=article.get('url')
+                article_url=article.get('url'),
+                image=image
             )
 
             if success:

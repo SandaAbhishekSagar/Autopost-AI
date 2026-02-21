@@ -57,6 +57,7 @@ class NewsFetcher:
         news_config = config.get('news', {})
         self.search_model = news_config.get('search_model', 'gpt-4o-mini')
         self.topics = news_config.get('topics', self.DEFAULT_TOPICS)
+        self.fetch_pool_size = news_config.get('fetch_pool_size', 20)
 
     def get_latest_news(self, limit: int = 10, rank_by_value: bool = False,
                         topics: Optional[List[str]] = None) -> List[Dict]:
@@ -93,20 +94,27 @@ class NewsFetcher:
     def _search_news(self, topics: List[str], limit: int) -> List[Dict]:
         """Search for news using OpenAI's web_search tool"""
         topics_str = ", ".join(topics[:10])
-        fetch_count = min(limit * 2, 20)
+        fetch_count = max(limit, self.fetch_pool_size)
 
-        prompt = f"""Search the web for the latest AI technology news and developments from the past 48 hours.
+        prompt = f"""Search the web for the HIGHEST-VALUE AI technology news from the past 48 hours.
 
 Focus on these topics and companies: {topics_str}
 
-Find the most important and impactful recent news articles about AI technologies, tools, models, product launches, research breakthroughs, and industry developments.
+PRIORITIZE articles that are HIGH-IMPACT:
+- Major announcements (OpenAI, NVIDIA, Google, Microsoft, Meta, Anthropic, Apple, Amazon)
+- Product launches and new model releases (GPT-4, Claude, Gemini, Llama, ChatGPT updates)
+- Significant funding rounds, acquisitions, or partnerships
+- Breakthroughs in AI research, chips (H100, Blackwell), or infrastructure
+- Strategic moves by tech giants in AI
 
-Return ONLY a valid JSON array with up to {fetch_count} articles. No markdown formatting, no code blocks, no explanation - just the raw JSON array:
+Exclude: routine blog posts, opinion pieces, minor updates.
+
+Return ONLY a valid JSON array with up to {fetch_count} articles. No markdown, no code blocks - just the raw JSON:
 
 [
   {{
     "title": "Exact article headline",
-    "description": "2-3 sentence summary of the key points",
+    "description": "2-3 sentence summary with key facts, numbers, and company names",
     "url": "Full URL to the article",
     "source": "Publication name (e.g., The Verge, TechCrunch, Reuters)",
     "published_at": "ISO 8601 date (e.g., 2026-02-18T10:30:00Z)"
@@ -114,11 +122,9 @@ Return ONLY a valid JSON array with up to {fetch_count} articles. No markdown fo
 ]
 
 Requirements:
-- Only include real, verified articles with actual working URLs
-- Focus on major developments, product launches, funding, partnerships, and breakthroughs
-- Include articles from reputable tech publications
-- Sort by importance and recency (most important first)
-- Each description should capture the key substance of the article
+- Only real articles with working URLs from reputable tech publications
+- Sort by impact and recency (highest-value first)
+- Include specific product names, funding amounts, company names in descriptions
 - Return ONLY the JSON array"""
 
         result = self._call_web_search(prompt)

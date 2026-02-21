@@ -26,14 +26,20 @@ class NewsScorer:
         'acquisition': 9,
         'investment': 8,
         'funding': 7,
-        'breakthrough': 10,
         'record': 8,
         'first': 9,
         'exclusive': 7,
         'major': 9,
         'significant': 8,
         'game-changer': 10,
-        'revolutionary': 10
+        'revolutionary': 10,
+        'billion': 9,
+        '$1b': 10,
+        '$2b': 10,
+        'valuation': 7,
+        'raised': 7,
+        'secures': 8,
+        'backed by': 7,
     }
     
     # Tech giant product keywords (higher value)

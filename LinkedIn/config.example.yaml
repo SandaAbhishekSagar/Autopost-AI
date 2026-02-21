@@ -48,6 +48,10 @@ news:
     - "generative AI"
     - "LLM"
 
+  # Pool and filtering - ensures best posts from high-value articles
+  fetch_pool_size: 20      # Fetch this many articles, then pick top by score
+  min_value_score: 40      # Only use articles scoring >= this (0-110 scale)
+
   # Multi-Article Storytelling Mode
   use_multiple_articles: false
   articles_per_post: 3

@@ -38,6 +38,8 @@ class LinkedInAIAgent:
         news_config = self.config.get('news', {})
         self.use_multiple_articles = news_config.get('use_multiple_articles', False)
         self.articles_per_post = news_config.get('articles_per_post', 3)
+        self.fetch_pool_size = news_config.get('fetch_pool_size', 20)
+        self.min_value_score = news_config.get('min_value_score', 40)
 
         if self.use_multiple_articles:
             logger.info(f"Multi-article storytelling mode ENABLED - will combine {self.articles_per_post} articles per post")
@@ -108,7 +110,9 @@ class LinkedInAIAgent:
                     'OpenAI,NVIDIA,Google AI,Microsoft AI,Meta AI,Anthropic,AI models,generative AI'
                 ).split(','),
                 'use_multiple_articles': os.environ.get('USE_MULTIPLE_ARTICLES', 'false').lower() == 'true',
-                'articles_per_post': int(os.environ.get('ARTICLES_PER_POST', '3'))
+                'articles_per_post': int(os.environ.get('ARTICLES_PER_POST', '3')),
+                'fetch_pool_size': int(os.environ.get('FETCH_POOL_SIZE', '20')),
+                'min_value_score': int(os.environ.get('MIN_VALUE_SCORE', '40'))
             },
             'post_generation': {
                 'ai_model': os.environ.get('OPENAI_MODEL', 'gpt-4'),
@@ -140,25 +144,29 @@ class LinkedInAIAgent:
         try:
             logger.info("Searching for latest AI/ML news via OpenAI web search...")
             rank_by_value = self.news_scorer is not None
-            limit = max(10, self.articles_per_post * 2) if self.use_multiple_articles else 10
-            articles = self.news_fetcher.get_latest_news(limit=limit, rank_by_value=rank_by_value)
+            articles = self.news_fetcher.get_latest_news(
+                limit=self.fetch_pool_size, rank_by_value=rank_by_value
+            )
 
             if not articles:
                 logger.warning("No articles found")
                 return False
 
-            logger.info(f"Found {len(articles)} relevant articles")
+            logger.info(f"Found {len(articles)} articles, selecting best by value score")
 
             if self.news_scorer:
                 self._display_news_analysis(articles)
 
-            if self.use_multiple_articles and len(articles) >= self.articles_per_post:
-                selected_articles = articles[:self.articles_per_post]
+            articles_needed = self.articles_per_post if self.use_multiple_articles else 1
+            top_articles = self._get_top_articles(articles, articles_needed)
+
+            if self.use_multiple_articles and len(top_articles) >= self.articles_per_post:
+                selected_articles = top_articles[:self.articles_per_post]
                 logger.info(f"Generating multi-article post from {len(selected_articles)} articles")
                 post_content = self.post_generator.generate_multi_article_post(selected_articles)
                 article = selected_articles[0]
             else:
-                article = articles[0]
+                article = top_articles[0]
                 logger.info(f"Generating post for: {article.get('title', 'Unknown')}")
                 post_content = self.post_generator.generate_post(article)
 
@@ -227,39 +235,62 @@ class LinkedInAIAgent:
         except Exception as e:
             logger.warning(f"Error displaying news analysis: {e}")
 
+    def _get_top_articles(self, articles: List[Dict], num_needed: int) -> List[Dict]:
+        """
+        Filter to high-value articles and return the top N.
+        Ensures we only generate posts from the best-scoring content.
+        """
+        if self.news_scorer and self.min_value_score > 0:
+            high_value = [a for a in articles if a.get('value_score', 0) >= self.min_value_score]
+            if high_value:
+                logger.info(f"Filtered to {len(high_value)} high-value articles (score >= {self.min_value_score})")
+                return high_value[:num_needed]
+            logger.warning(f"No articles met min score {self.min_value_score}, using top {num_needed} by rank")
+        return articles[:num_needed]
+
     def preview_posts(self, num_posts: int = 3, topics: List[str] = None) -> List[Dict]:
         """
         Preview multiple posts without posting.
-
-        Args:
-            num_posts: Number of posts to preview
-            topics: Optional custom topics for news search
+        Fetches a large pool, scores all articles, filters to high-value only,
+        and generates posts for the TOP articles (best score first).
         """
-        logger.info(f"Generating preview for {num_posts} posts...")
+        logger.info(f"Fetching news pool to find the best {num_posts} articles...")
 
         if self.use_multiple_articles:
             articles_needed = num_posts * self.articles_per_post
         else:
             articles_needed = num_posts
 
+        # Fetch larger pool, score and rank all
         rank_by_value = self.news_scorer is not None
         articles = self.news_fetcher.get_latest_news(
-            limit=articles_needed, rank_by_value=rank_by_value, topics=topics
+            limit=self.fetch_pool_size, rank_by_value=rank_by_value, topics=topics
         )
+
+        if not articles:
+            return []
 
         if self.news_scorer:
             self._display_news_analysis(articles)
 
+        # Filter to high-value only, take top N (best first)
+        top_articles = self._get_top_articles(articles, articles_needed)
+
+        if not top_articles:
+            return []
+
         previews = []
 
-        if self.use_multiple_articles and len(articles) >= self.articles_per_post:
+        if self.use_multiple_articles and len(top_articles) >= self.articles_per_post:
             for i in range(num_posts):
                 start_idx = i * self.articles_per_post
                 end_idx = start_idx + self.articles_per_post
-                if end_idx > len(articles):
+                if end_idx > len(top_articles):
                     break
 
-                selected_articles = articles[start_idx:end_idx]
+                selected_articles = top_articles[start_idx:end_idx]
+                score = selected_articles[0].get('value_score', 0)
+                logger.info(f"Generating post {i+1}/{num_posts} from top articles (score: {score})")
                 post_content = self.post_generator.generate_multi_article_post(selected_articles)
                 previews.append({
                     'article': selected_articles[0],
@@ -267,7 +298,9 @@ class LinkedInAIAgent:
                     'post': post_content
                 })
         else:
-            for article in articles[:num_posts]:
+            for i, article in enumerate(top_articles[:num_posts]):
+                score = article.get('value_score', 0)
+                logger.info(f"Generating post {i+1}/{num_posts}: {article.get('title', '')[:50]}... (score: {score})")
                 post_content = self.post_generator.generate_post(article)
                 previews.append({
                     'article': article,

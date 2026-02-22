@@ -39,7 +39,7 @@ TRUSTED_DOMAINS = [
 
 
 class NewsFetcher:
-    """Fetches latest AI/ML news using OpenAI's web_search tool"""
+    """Fetches latest AI/ML news using OpenAI web search and/or RSS scraping"""
 
     DEFAULT_TOPICS = [
         "OpenAI", "NVIDIA", "Google AI", "Microsoft AI",
@@ -50,11 +50,11 @@ class NewsFetcher:
     def __init__(self, config: Dict):
         self.config = config
         openai_key = config.get('post_generation', {}).get('openai_api_key', '')
-        if not openai_key:
-            raise ValueError("OpenAI API key is required for AI-powered news fetching")
-
-        self.client = OpenAI(api_key=openai_key)
         news_config = config.get('news', {})
+        self.fetch_method = news_config.get('fetch_method', 'both')  # "ai" | "scraping" | "both"
+        self.client = OpenAI(api_key=openai_key) if openai_key else None
+        if self.fetch_method == 'ai' and not openai_key:
+            raise ValueError("OpenAI API key is required when fetch_method is 'ai'")
         self.search_model = news_config.get('search_model', 'gpt-4o-mini')
         self.topics = news_config.get('topics', self.DEFAULT_TOPICS)
         self.fetch_pool_size = news_config.get('fetch_pool_size', 20)
@@ -62,7 +62,7 @@ class NewsFetcher:
     def get_latest_news(self, limit: int = 10, rank_by_value: bool = False,
                         topics: Optional[List[str]] = None) -> List[Dict]:
         """
-        Get latest AI/ML news using OpenAI web search.
+        Get latest AI/ML news using AI search and/or RSS scraping.
 
         Args:
             limit: Maximum number of articles to return
@@ -70,16 +70,49 @@ class NewsFetcher:
             topics: Optional custom topics to search for
 
         Returns:
-            List of article dictionaries
+            List of article dictionaries (may include image_url from RSS)
         """
-        search_topics = topics or self.topics
-        articles = self._search_news(search_topics, limit)
+        articles = []
+        fetch_count = max(limit, self.fetch_pool_size)
+
+        if self.fetch_method in ('scraping', 'both'):
+            try:
+                from news_scraper import scrape_news
+                scraped = scrape_news(limit=fetch_count)
+                if scraped:
+                    articles.extend(scraped)
+                    logger.info(f"Scraped {len(scraped)} articles from RSS feeds")
+            except ImportError as e:
+                logger.warning(f"News scraper not available: {e}")
+
+        if self.fetch_method in ('ai', 'both') and self.client:
+            search_topics = topics or self.topics
+            ai_articles = self._search_news(search_topics, fetch_count)
+            if ai_articles:
+                # Merge: dedupe by URL, prefer scraped (has image_url) when same URL
+                seen = {a['url'] for a in articles}
+                for a in ai_articles:
+                    url = a.get('url', '').strip()
+                    if url and url not in seen:
+                        seen.add(url)
+                        articles.append(a)
+                if self.fetch_method == 'ai':
+                    articles = ai_articles
 
         if not articles:
-            logger.warning("No articles found from web search")
+            logger.warning("No articles found")
             return []
 
-        logger.info(f"Found {len(articles)} articles via AI web search")
+        # Sort by published_at when available (newest first)
+        def sort_key(a):
+            pub = a.get('published_at', '')
+            try:
+                s = pub.replace('Z', '+00:00')
+                return datetime.fromisoformat(s)
+            except Exception:
+                return datetime(1970, 1, 1)
+
+        articles.sort(key=sort_key, reverse=True)
 
         if rank_by_value:
             try:
@@ -96,18 +129,20 @@ class NewsFetcher:
         topics_str = ", ".join(topics[:10])
         fetch_count = max(limit, self.fetch_pool_size)
 
-        prompt = f"""Search the web for the HIGHEST-VALUE AI technology news from the past 48 hours.
+        prompt = f"""Search the web for the HIGHEST-VALUE, HIGH-IMPACT AI technology news from the past 24-48 hours.
 
 Focus on these topics and companies: {topics_str}
 
-PRIORITIZE articles that are HIGH-IMPACT:
-- Major announcements (OpenAI, NVIDIA, Google, Microsoft, Meta, Anthropic, Apple, Amazon)
-- Product launches and new model releases (GPT-4, Claude, Gemini, Llama, ChatGPT updates)
-- Significant funding rounds, acquisitions, or partnerships
-- Breakthroughs in AI research, chips (H100, Blackwell), or infrastructure
-- Strategic moves by tech giants in AI
+STRICT PRIORITY - only include articles that are genuinely high-value:
+- Major product launches or model releases (GPT-5, Claude 4, Gemini, Llama 4, new ChatGPT features)
+- Significant funding ($100M+), acquisitions, or strategic partnerships
+- Breakthrough announcements (OpenAI, NVIDIA, Google, Microsoft, Meta, Anthropic, Apple)
+- New chip releases (H100, Blackwell, B200), infrastructure, or research milestones
+- Exclusive or breaking news from top tech publications
 
-Exclude: routine blog posts, opinion pieces, minor updates.
+EXCLUDE: routine blog posts, opinion pieces, listicles, minor updates, generic roundups.
+
+Prefer: TechCrunch, The Verge, Reuters, Bloomberg, VentureBeat, Ars Technica, The Information.
 
 Return ONLY a valid JSON array with up to {fetch_count} articles. No markdown, no code blocks - just the raw JSON:
 
@@ -122,9 +157,10 @@ Return ONLY a valid JSON array with up to {fetch_count} articles. No markdown, n
 ]
 
 Requirements:
-- Only real articles with working URLs from reputable tech publications
+- Only real, high-impact articles with working URLs from reputable tech publications
 - Sort by impact and recency (highest-value first)
 - Include specific product names, funding amounts, company names in descriptions
+- Skip low-value or speculative content - quality over quantity
 - Return ONLY the JSON array"""
 
         result = self._call_web_search(prompt)

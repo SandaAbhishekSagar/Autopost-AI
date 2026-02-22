@@ -39,7 +39,7 @@ class LinkedInAIAgent:
         self.use_multiple_articles = news_config.get('use_multiple_articles', False)
         self.articles_per_post = news_config.get('articles_per_post', 3)
         self.fetch_pool_size = news_config.get('fetch_pool_size', 20)
-        self.min_value_score = news_config.get('min_value_score', 40)
+        self.min_value_score = news_config.get('min_value_score', 50)
 
         if self.use_multiple_articles:
             logger.info(f"Multi-article storytelling mode ENABLED - will combine {self.articles_per_post} articles per post")
@@ -66,8 +66,7 @@ class LinkedInAIAgent:
                     logger.warning(f"Could not save config: {e}")
                 return config
             else:
-                logger.error("No config file and could not create from environment variables!")
-                sys.exit(1)
+                raise RuntimeError("No config file and could not create from environment variables. Set OPENAI_API_KEY and LINKEDIN_ACCESS_TOKEN.")
 
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
@@ -76,7 +75,7 @@ class LinkedInAIAgent:
             return config
         except Exception as e:
             logger.error(f"Error loading configuration: {e}")
-            sys.exit(1)
+            raise
 
     def _create_config_from_env(self) -> Optional[Dict]:
         """Create configuration from environment variables"""
@@ -104,6 +103,7 @@ class LinkedInAIAgent:
                 'access_token': linkedin_access_token
             },
             'news': {
+                'fetch_method': os.environ.get('NEWS_FETCH_METHOD', 'both'),
                 'search_model': os.environ.get('SEARCH_MODEL', 'gpt-4o-mini'),
                 'topics': os.environ.get(
                     'NEWS_TOPICS',
@@ -112,7 +112,10 @@ class LinkedInAIAgent:
                 'use_multiple_articles': os.environ.get('USE_MULTIPLE_ARTICLES', 'false').lower() == 'true',
                 'articles_per_post': int(os.environ.get('ARTICLES_PER_POST', '3')),
                 'fetch_pool_size': int(os.environ.get('FETCH_POOL_SIZE', '20')),
-                'min_value_score': int(os.environ.get('MIN_VALUE_SCORE', '40'))
+                'min_value_score': int(os.environ.get('MIN_VALUE_SCORE', '50'))
+            },
+            'post': {
+                'include_image': os.environ.get('INCLUDE_IMAGE', 'true').lower() == 'true'
             },
             'post_generation': {
                 'ai_model': os.environ.get('OPENAI_MODEL', 'gpt-4'),

@@ -18,20 +18,28 @@ def get_image_for_post(
     article_url: Optional[str],
     article_title: str,
     post_content: str,
-    openai_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None,
+    image_url: Optional[str] = None
 ) -> Optional[Tuple[bytes, str]]:
     """
-    Get an image for a LinkedIn post. Tries article og:image first, then DALL-E.
+    Get an image for a LinkedIn post. Tries direct image_url (RSS), then og:image, then DALL-E.
 
     Args:
         article_url: URL of the source article (for og:image)
         article_title: Article title (for DALL-E prompt)
         post_content: Post text (for DALL-E context)
         openai_api_key: OpenAI API key for DALL-E fallback
+        image_url: Direct image URL from RSS (tried first)
 
     Returns:
         Tuple of (image_bytes, content_type) or None
     """
+    # Strategy 0: Direct image URL from RSS
+    if image_url:
+        img = _fetch_direct_image(image_url)
+        if img:
+            return img
+
     # Strategy 1: Fetch og:image from article URL
     if article_url:
         img = _fetch_og_image(article_url)
@@ -47,28 +55,66 @@ def get_image_for_post(
     return None
 
 
-def _fetch_og_image(url: str) -> Optional[Tuple[bytes, str]]:
-    """Fetch Open Graph image from article URL"""
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+
+def _fetch_direct_image(url: str) -> Optional[Tuple[bytes, str]]:
+    """Fetch image from direct URL (e.g. RSS enclosure)"""
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (compatible; AutoPostAI/1.0; +https://github.com/autopost-ai)'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
         }
-        resp = requests.get(url, headers=headers, timeout=10)
+        resp = requests.get(url, headers=headers, timeout=15, stream=True)
+        resp.raise_for_status()
+        content_length = resp.headers.get('Content-Length')
+        if content_length and int(content_length) > MAX_IMAGE_SIZE:
+            logger.debug(f"Image too large ({content_length} bytes), skipping")
+            return None
+        content = resp.content
+        if len(content) > MAX_IMAGE_SIZE:
+            logger.debug(f"Image too large ({len(content)} bytes), skipping")
+            return None
+        ct = resp.headers.get('Content-Type', 'image/jpeg')
+        if ';' in ct:
+            ct = ct.split(';')[0].strip()
+        if ct not in ('image/jpeg', 'image/jpg', 'image/png', 'image/gif'):
+            ct = 'image/jpeg'
+        logger.info(f"Fetched direct image from RSS ({len(content)} bytes)")
+        return (content, ct)
+    except Exception as e:
+        logger.debug(f"Could not fetch direct image from {url}: {e}")
+        return None
+
+
+def _fetch_og_image(url: str) -> Optional[Tuple[bytes, str]]:
+    """Fetch Open Graph or Twitter image from article URL"""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
+        resp = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
         resp.raise_for_status()
         html = resp.text
 
-        # Extract og:image - common patterns
+        # Extract og:image or twitter:image - many sites use different formats
         patterns = [
             r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']',
             r'<meta\s+content=["\']([^"\']+)["\']\s+property=["\']og:image["\']',
+            r'<meta\s+name=["\']twitter:image["\']\s+content=["\']([^"\']+)["\']',
+            r'<meta\s+content=["\']([^"\']+)["\']\s+name=["\']twitter:image["\']',
             r'"og:image":\s*["\']([^"\']+)["\']',
+            r'"twitter:image":\s*["\']([^"\']+)["\']',
+            r'<meta\s+property=["\']og:image["\']\s+content="([^"]+)"',
+            r'<meta\s+content="([^"]+)"\s+property=["\']og:image["\']',
         ]
         img_url = None
         for pat in patterns:
             m = re.search(pat, html, re.I)
             if m:
-                img_url = m.group(1)
-                break
+                img_url = m.group(1).strip()
+                if img_url:
+                    break
 
         if not img_url:
             return None
@@ -81,7 +127,8 @@ def _fetch_og_image(url: str) -> Optional[Tuple[bytes, str]]:
             parsed = urlparse(url)
             img_url = f"{parsed.scheme}://{parsed.netloc}{img_url}"
 
-        # Download image
+        # Download image (same headers; some CDNs require Referer)
+        headers['Referer'] = url
         img_resp = requests.get(img_url, headers=headers, timeout=15)
         img_resp.raise_for_status()
         content_type = img_resp.headers.get('Content-Type', 'image/jpeg')

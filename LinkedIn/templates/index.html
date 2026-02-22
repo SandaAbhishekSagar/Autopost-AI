@@ -677,6 +677,46 @@
             text-align: right;
         }
 
+        /* Article Image */
+        .article-image-wrapper {
+            position: relative;
+            overflow: hidden;
+            background: var(--bg-alt);
+            border-bottom: 1px solid var(--border);
+            max-height: 220px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .article-image {
+            width: 100%;
+            max-height: 220px;
+            object-fit: cover;
+            display: block;
+            transition: opacity var(--transition);
+        }
+
+        .article-image.loading {
+            opacity: 0;
+        }
+
+        .article-image-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 80px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .article-image-placeholder .img-icon {
+            font-size: 28px;
+            opacity: 0.4;
+        }
+
         /* Post Content */
         .post-content-wrapper {
             padding: 24px;
@@ -1040,9 +1080,17 @@
         })();
 
         // ===== Topics =====
+        function updateGenerateButtonState() {
+            const count = document.querySelectorAll('.topic-chip.active').length;
+            document.getElementById('generateBtn').disabled = count === 0;
+        }
         document.querySelectorAll('.topic-chip').forEach(chip => {
-            chip.addEventListener('click', () => chip.classList.toggle('active'));
+            chip.addEventListener('click', () => {
+                chip.classList.toggle('active');
+                updateGenerateButtonState();
+            });
         });
+        window.addEventListener('load', updateGenerateButtonState);
 
         function getSelectedTopics() {
             return Array.from(document.querySelectorAll('.topic-chip.active'))
@@ -1109,7 +1157,11 @@
                 if (data.success) {
                     postsData = data.posts;
                     renderPosts(data.posts);
-                    showToast('success', `Generated ${data.posts.length} post${data.posts.length > 1 ? 's' : ''} successfully!`);
+                    if (data.posts.length > 0) {
+                        showToast('success', `Generated ${data.posts.length} post${data.posts.length > 1 ? 's' : ''} successfully!`);
+                    } else {
+                        showToast('info', 'No articles found. Try different topics.');
+                    }
                 } else {
                     showToast('error', data.error || 'Failed to generate posts.');
                 }
@@ -1124,9 +1176,24 @@
         }
 
         // ===== Render Posts =====
+        function showEmptyState(message) {
+            const container = document.getElementById('postsContainer');
+            container.innerHTML = `
+                <div class="empty-state" id="emptyState">
+                    <div class="empty-icon">&#128196;</div>
+                    <h3>${message ? 'No posts found' : 'No posts generated yet'}</h3>
+                    <p>${message || 'Select your topics, choose the number of posts, and click Generate to get started.'}</p>
+                </div>`;
+        }
+
         function renderPosts(posts) {
             const container = document.getElementById('postsContainer');
             container.innerHTML = '';
+
+            if (!posts || posts.length === 0) {
+                showEmptyState('No articles found. Try different topics or try again later.');
+                return;
+            }
 
             posts.forEach((post, idx) => {
                 const card = document.createElement('div');
@@ -1166,6 +1233,25 @@
                         </div>`;
                 }
 
+                // Build image section - prefer image_url (RSS) when available, else article og:image
+                const imgUrl = post.article.image_url || post.article.url;
+                const imgSrc = imgUrl ? (post.article.image_url
+                    ? '/api/image?url=' + encodeURIComponent(post.article.image_url) + '&direct=1'
+                    : '/api/image?url=' + encodeURIComponent(post.article.url)) : null;
+                const imageHTML = imgSrc ? `
+                    <div class="article-image-wrapper" id="imgWrapper${idx}">
+                        <div class="article-image-placeholder" id="imgPlaceholder${idx}">
+                            <span class="img-icon">&#128444;</span>
+                            <span>Loading image...</span>
+                        </div>
+                        <img class="article-image loading" id="articleImg${idx}"
+                            src="${imgSrc}"
+                            alt="${esc(post.article.title)}"
+                            style="display:none;"
+                            onload="onImgLoad(${idx})"
+                            onerror="onImgError(${idx})" />
+                    </div>` : '';
+
                 card.innerHTML = `
                     <div class="post-card-header">
                         <div class="article-meta">
@@ -1177,6 +1263,7 @@
                         </div>
                         <div class="post-number">${idx + 1}</div>
                     </div>
+                    ${imageHTML}
                     ${scoringHTML}
                     <div class="post-content-wrapper">
                         <div class="post-content" id="postContent${idx}">${esc(post.content)}</div>
@@ -1213,6 +1300,22 @@
                 const textarea = document.getElementById(`postEdit${idx}`);
                 textarea.addEventListener('input', () => updateCharCount(idx));
             });
+        }
+
+        // ===== Image Handlers =====
+        function onImgLoad(idx) {
+            const img = document.getElementById(`articleImg${idx}`);
+            const placeholder = document.getElementById(`imgPlaceholder${idx}`);
+            if (img && placeholder) {
+                placeholder.style.display = 'none';
+                img.style.display = 'block';
+                img.classList.remove('loading');
+            }
+        }
+
+        function onImgError(idx) {
+            const wrapper = document.getElementById(`imgWrapper${idx}`);
+            if (wrapper) wrapper.style.display = 'none';
         }
 
         // ===== Edit Toggle =====
@@ -1258,10 +1361,13 @@
             contentEl.textContent = 'Regenerating...';
 
             try {
+                const payload = post.articles && post.articles.length >= 2
+                    ? { article: post.article, articles: post.articles }
+                    : { article: post.article };
                 const res = await fetch('/api/regenerate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ article: post.article })
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -1316,7 +1422,8 @@
                     body: JSON.stringify({
                         content: post.content,
                         article_url: post.article.url,
-                        article_title: post.article.title
+                        article_title: post.article.title,
+                        article_image_url: post.article.image_url || null
                     })
                 });
 

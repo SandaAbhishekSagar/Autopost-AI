@@ -1,14 +1,17 @@
 """
 Flask Web Application for LinkedIn AI Auto-Poster
 Provides a modern web UI for generating, reviewing, editing, and posting LinkedIn content.
-Now powered by OpenAI web search instead of traditional news scraping.
+Now powered by OpenAI web search and RSS scraping.
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 import logging
 import os
+import re
+import requests
+from urllib.parse import urlparse
 from agent import LinkedInAIAgent
-from image_helper import get_image_for_post
+from image_helper import get_image_for_post, _fetch_og_image
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,6 +19,44 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 agent = None
+
+# Blocked patterns for SSRF protection (image proxy)
+_BLOCKED_IP_PATTERNS = (
+    re.compile(r'^127\.'),           # localhost
+    re.compile(r'^10\.'),            # private
+    re.compile(r'^172\.(1[6-9]|2[0-9]|3[0-1])\.'),  # private
+    re.compile(r'^192\.168\.'),      # private
+    re.compile(r'^169\.254\.'),      # link-local
+    re.compile(r'^0\.'),
+    re.compile(r'^localhost$', re.I),
+)
+
+
+def _is_safe_image_url(url: str) -> bool:
+    """Validate URL to prevent SSRF - allow only https, block private/internal IPs."""
+    try:
+        parsed = urlparse(url)
+        scheme = (parsed.scheme or '').lower()
+        host = (parsed.hostname or parsed.netloc or '').lower().split(':')[0]
+        if scheme not in ('http', 'https'):
+            return False
+        if not host or host in ('localhost', '127.0.0.1'):
+            return False
+        for pat in _BLOCKED_IP_PATTERNS:
+            if pat.match(host):
+                return False
+        # Block numeric IPs in private ranges
+        if re.match(r'^\d+\.\d+\.\d+\.\d+$', host):
+            parts = [int(p) for p in host.split('.')]
+            if parts[0] == 10:
+                return False
+            if parts[0] == 172 and 16 <= parts[1] <= 31:
+                return False
+            if parts[0] == 192 and parts[1] == 168:
+                return False
+        return True
+    except Exception:
+        return False
 
 
 def init_agent():
@@ -59,14 +100,16 @@ def generate_post():
                         'title': f"Multi-Article Story: {len(articles)} articles combined",
                         'source': ', '.join(set(a.get('source', 'Unknown') for a in articles)),
                         'url': article.get('url', ''),
-                        'description': f"Combined {len(articles)} articles into a storytelling post"
+                        'description': f"Combined {len(articles)} articles into a storytelling post",
+                        'image_url': article.get('image_url', '')
                     },
                     'content': preview['post'],
                     'articles': [
                         {
                             'title': a.get('title', 'Unknown'),
                             'source': a.get('source', 'Unknown'),
-                            'url': a.get('url', '')
+                            'url': a.get('url', ''),
+                            'description': a.get('description', '')
                         }
                         for a in articles
                     ]
@@ -78,7 +121,8 @@ def generate_post():
                         'title': article.get('title', 'Unknown'),
                         'source': article.get('source', 'Unknown'),
                         'url': article.get('url', ''),
-                        'description': article.get('description', '')
+                        'description': article.get('description', ''),
+                        'image_url': article.get('image_url', '')
                     },
                     'content': preview['post']
                 }
@@ -98,7 +142,7 @@ def generate_post():
 
     except Exception as e:
         logger.error(f"Error generating post: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to generate posts. Please check your configuration and try again.'}), 500
 
 
 @app.route('/api/post', methods=['POST'])
@@ -109,6 +153,7 @@ def post_to_linkedin():
         post_content = data.get('content', '')
         article_url = data.get('article_url', '') or None
         article_title = data.get('article_title', '')
+        image_url = data.get('article_image_url', '') or None
 
         if not post_content:
             return jsonify({'error': 'Post content is required'}), 400
@@ -127,7 +172,8 @@ def post_to_linkedin():
                     article_url=article_url,
                     article_title=article_title,
                     post_content=post_content,
-                    openai_api_key=openai_key
+                    openai_api_key=openai_key,
+                    image_url=image_url
                 )
             except Exception as e:
                 logger.warning(f"Could not get image for post: {e}")
@@ -145,7 +191,7 @@ def post_to_linkedin():
 
     except Exception as e:
         logger.error(f"Error posting to LinkedIn: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to post. Please check your LinkedIn token and try again.'}), 500
 
 
 @app.route('/api/status', methods=['GET'])
@@ -174,24 +220,27 @@ def get_status():
 
     except Exception as e:
         logger.error(f"Error getting status: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to get status.'}), 500
 
 
 @app.route('/api/regenerate', methods=['POST'])
 def regenerate_post():
-    """Regenerate a post for a specific article"""
+    """Regenerate a post for a specific article or multi-article story"""
     try:
         data = request.json or {}
         article = data.get('article', {})
-
-        if not article.get('title'):
-            return jsonify({'error': 'Article data is required'}), 400
+        articles = data.get('articles', [])
 
         if not agent:
             if not init_agent():
                 return jsonify({'error': 'Failed to initialize agent.'}), 500
 
-        post_content = agent.post_generator.generate_post(article)
+        if articles and len(articles) >= 2:
+            post_content = agent.post_generator.generate_multi_article_post(articles)
+        elif article.get('title'):
+            post_content = agent.post_generator.generate_post(article)
+        else:
+            return jsonify({'error': 'Article data is required'}), 400
 
         return jsonify({
             'success': True,
@@ -200,12 +249,49 @@ def regenerate_post():
 
     except Exception as e:
         logger.error(f"Error regenerating post: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Regeneration failed. Please try again.'}), 500
+
+
+@app.route('/api/image', methods=['GET'])
+def proxy_article_image():
+    """Fetch and proxy image - supports direct image URLs (RSS) or article og:image"""
+    url = request.args.get('url', '').strip()
+    direct = request.args.get('direct', '').lower() in ('1', 'true', 'yes')
+    if not url or not _is_safe_image_url(url):
+        return '', 404
+
+    try:
+        # Direct image URL (from RSS enclosure) - fetch and proxy
+        if direct or any(url.lower().split('?')[0].endswith(ext) for ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp')):
+            resp = requests.get(
+                url,
+                headers={'User-Agent': 'Mozilla/5.0 (compatible; AutoPostAI/1.0)'},
+                timeout=15
+            )
+            resp.raise_for_status()
+            ct = resp.headers.get('Content-Type', 'image/jpeg')
+            if 'image' in ct.split(';')[0].lower():
+                return Response(resp.content, mimetype=ct.split(';')[0].strip(), headers={
+                    'Cache-Control': 'public, max-age=3600'
+                })
+        if direct:
+            return '', 404
+
+        # Treat as article URL, extract og:image
+        result = _fetch_og_image(url)
+        if result:
+            image_bytes, content_type = result
+            return Response(image_bytes, mimetype=content_type, headers={
+                'Cache-Control': 'public, max-age=3600'
+            })
+    except Exception as e:
+        logger.debug(f"Image proxy failed for {url}: {e}")
+
+    return '', 404
 
 
 if __name__ == '__main__':
-    init_agent()
-
+    # Defer agent init to first API call - allows Flask to start even if config is missing
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 

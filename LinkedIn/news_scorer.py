@@ -181,7 +181,7 @@ class NewsScorer:
                 return 5   # Yesterday
             else:
                 return 2   # Older
-        except:
+        except (ValueError, TypeError, OSError):
             return 5  # Default if parsing fails
     
     def _calculate_source_score(self, source: str) -> int:

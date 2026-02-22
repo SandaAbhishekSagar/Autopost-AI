@@ -1,8 +1,8 @@
 # AutoPost AI - LinkedIn Content Generator
 # Copy this file to config.yaml and fill in your details
 #
-# Now powered by OpenAI Web Search - no RSS feeds, NewsAPI keys, or scraping needed.
-# Just provide your OpenAI API key and the app searches the web for the latest AI news.
+# Powered by OpenAI Web Search + RSS scraping.
+# Env vars can override: OPENAI_API_KEY, LINKEDIN_ACCESS_TOKEN, NEWS_FETCH_METHOD, etc.
 
 # Your LinkedIn Profile Information
 profile:
@@ -30,10 +30,12 @@ linkedin:
   access_token: "YOUR_ACCESS_TOKEN"
   # Get these from: https://www.linkedin.com/developers/apps
 
-# News Search Settings (powered by OpenAI Web Search)
+# News Search Settings
 news:
-  # Model used for web search via Responses API + web_search tool
-  # gpt-4o-mini is fast and cheap; use gpt-4o for more thorough results
+  # How to fetch news: "both" (AI + RSS scraping), "ai" (OpenAI web search only), "scraping" (RSS only)
+  fetch_method: "both"
+
+  # Model used for web search (when fetch_method is "ai" or "both")
   search_model: "gpt-4o-mini"
 
   # Default topics to search for (can also be changed from the UI)
@@ -50,7 +52,7 @@ news:
 
   # Pool and filtering - ensures best posts from high-value articles
   fetch_pool_size: 20      # Fetch this many articles, then pick top by score
-  min_value_score: 40      # Only use articles scoring >= this (0-110 scale)
+  min_value_score: 50      # Only use articles scoring >= this (0-110 scale). Raise to 60+ for stricter filtering.
 
   # Multi-Article Storytelling Mode
   use_multiple_articles: false

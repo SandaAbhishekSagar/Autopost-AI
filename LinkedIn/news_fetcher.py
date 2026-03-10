@@ -58,6 +58,7 @@ class NewsFetcher:
         self.search_model = news_config.get('search_model', 'gpt-4o-mini')
         self.topics = news_config.get('topics', self.DEFAULT_TOPICS)
         self.fetch_pool_size = news_config.get('fetch_pool_size', 20)
+        self.max_age_hours = news_config.get('max_age_hours', 72)
 
     def get_latest_news(self, limit: int = 10, rank_by_value: bool = False,
                         topics: Optional[List[str]] = None) -> List[Dict]:
@@ -78,7 +79,7 @@ class NewsFetcher:
         if self.fetch_method in ('scraping', 'both'):
             try:
                 from news_scraper import scrape_news
-                scraped = scrape_news(limit=fetch_count)
+                scraped = scrape_news(limit=fetch_count, max_age_hours=self.max_age_hours)
                 if scraped:
                     articles.extend(scraped)
                     logger.info(f"Scraped {len(scraped)} articles from RSS feeds")
@@ -113,6 +114,24 @@ class NewsFetcher:
                 return datetime(1970, 1, 1)
 
         articles.sort(key=sort_key, reverse=True)
+
+        # Drop articles older than max_age_hours so we only surface latest news
+        if self.max_age_hours and self.max_age_hours > 0:
+            from datetime import timedelta
+            cutoff = datetime.utcnow() - timedelta(hours=self.max_age_hours)
+            filtered = []
+            for a in articles:
+                pub = a.get("published_at", "")
+                try:
+                    s = pub.replace("Z", "+00:00")
+                    dt = datetime.fromisoformat(s)
+                    if getattr(dt, "tzinfo", None):
+                        dt = (dt - dt.utcoffset()).replace(tzinfo=None) if dt.utcoffset() else dt.replace(tzinfo=None)
+                    if dt >= cutoff:
+                        filtered.append(a)
+                except Exception:
+                    filtered.append(a)
+            articles = filtered
 
         if rank_by_value:
             try:
@@ -231,6 +250,11 @@ Requirements:
 
         # Strategy 3: Standard model fallback (no live web search)
         try:
+            logger.warning(
+                "Using standard model fallback (no live web search). "
+                "Returned news may be outdated (model knowledge cutoff). "
+                "For latest news, ensure web_search or web_search_preview is available."
+            )
             logger.info("Falling back to standard model (no live web search)...")
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",

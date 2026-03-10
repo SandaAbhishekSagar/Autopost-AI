@@ -112,6 +112,7 @@ class LinkedInAIAgent:
                 'use_multiple_articles': os.environ.get('USE_MULTIPLE_ARTICLES', 'false').lower() == 'true',
                 'articles_per_post': int(os.environ.get('ARTICLES_PER_POST', '3')),
                 'fetch_pool_size': int(os.environ.get('FETCH_POOL_SIZE', '20')),
+                'max_age_hours': int(os.environ.get('MAX_AGE_HOURS', '72')),
                 'min_value_score': int(os.environ.get('MIN_VALUE_SCORE', '50'))
             },
             'post': {

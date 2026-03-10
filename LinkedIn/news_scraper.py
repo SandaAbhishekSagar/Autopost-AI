@@ -102,13 +102,17 @@ def extract_image_from_entry(entry) -> Optional[str]:
 
 
 def parse_published(entry) -> str:
-    """Parse published date to ISO format"""
+    """Parse published date to ISO format (UTC).
+    feedparser returns UTC struct_time; use timegm (not mktime) to avoid timezone shift.
+    """
     for attr in ("published_parsed", "updated_parsed", "created_parsed"):
         parsed = getattr(entry, attr, None)
         if parsed:
             try:
-                from time import mktime
-                dt = datetime.fromtimestamp(mktime(parsed))
+                from calendar import timegm
+                # parsed is UTC struct_time; mktime() would treat it as local time (wrong)
+                ts = timegm(parsed)
+                dt = datetime.utcfromtimestamp(ts)
                 return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
             except (TypeError, ValueError, OSError):
                 pass
@@ -168,13 +172,16 @@ def fetch_feed(feed_url: str, source: str, timeout: int = 10) -> List[Dict]:
     return articles
 
 
-def scrape_news(limit: int = 20, feeds: Optional[List[Dict]] = None) -> List[Dict]:
+def scrape_news(limit: int = 20, feeds: Optional[List[Dict]] = None,
+                max_age_hours: Optional[int] = 72) -> List[Dict]:
     """
     Scrape news from RSS feeds, filter for AI relevance, dedupe by URL.
+    Only keeps articles from the last max_age_hours (default 72 = 3 days) so results are latest.
 
     Args:
         limit: Max articles to return
         feeds: Optional list of {"url": "...", "source": "..."} to override defaults
+        max_age_hours: Drop articles older than this many hours (None = no filter)
 
     Returns:
         List of article dicts with title, description, url, source, published_at, image_url
@@ -182,6 +189,10 @@ def scrape_news(limit: int = 20, feeds: Optional[List[Dict]] = None) -> List[Dic
     feed_list = feeds or RSS_FEEDS
     all_articles = []
     seen_urls = set()
+    cutoff_utc = None
+    if max_age_hours is not None and max_age_hours > 0:
+        from datetime import timedelta
+        cutoff_utc = datetime.utcnow() - timedelta(hours=max_age_hours)
 
     for feed in feed_list:
         url = feed.get("url", "")
@@ -192,6 +203,16 @@ def scrape_news(limit: int = 20, feeds: Optional[List[Dict]] = None) -> List[Dic
         for a in articles:
             u = a.get("url", "")
             if u and u not in seen_urls:
+                if cutoff_utc is not None:
+                    try:
+                        pub_str = a.get("published_at", "").replace("Z", "").strip()
+                        pub = datetime.fromisoformat(pub_str)
+                        if getattr(pub, "tzinfo", None):
+                            pub = (pub - pub.utcoffset()).replace(tzinfo=None)
+                        if pub < cutoff_utc:
+                            continue
+                    except Exception:
+                        pass
                 seen_urls.add(u)
                 all_articles.append(a)
 
@@ -203,5 +224,5 @@ def scrape_news(limit: int = 20, feeds: Optional[List[Dict]] = None) -> List[Dic
             return datetime.min
 
     all_articles.sort(key=sort_key, reverse=True)
-    logger.info(f"Scraped {len(all_articles)} AI-related articles from RSS feeds")
+    logger.info(f"Scraped {len(all_articles)} AI-related articles from RSS feeds (max_age_hours={max_age_hours})")
     return all_articles[:limit]

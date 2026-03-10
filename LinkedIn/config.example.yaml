@@ -52,6 +52,7 @@ news:
 
   # Pool and filtering - ensures best posts from high-value articles
   fetch_pool_size: 20      # Fetch this many articles, then pick top by score
+  max_age_hours: 72        # Only include articles from the last N hours (default 72 = 3 days)
   min_value_score: 50      # Only use articles scoring >= this (0-110 scale). Raise to 60+ for stricter filtering.
 
   # Multi-Article Storytelling Mode

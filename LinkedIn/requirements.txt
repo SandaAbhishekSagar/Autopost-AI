@@ -1,5 +1,5 @@
 # AutoPost AI - LinkedIn Content Generator
-# Powered by OpenAI Web Search
+# Powered by OpenAI Web Search + Personal Blog Scraping
 
 # Core
 openai>=1.66.0
@@ -7,6 +7,9 @@ flask>=3.0.0
 requests>=2.31.0
 pyyaml>=6.0.1
 feedparser>=6.0.0
+
+# Blog scraping (used when news.fetch_method is "blog")
+beautifulsoup4>=4.12.0
 
 # Optional: For scheduling
 schedule>=1.2.0

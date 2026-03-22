@@ -39,7 +39,8 @@ TRUSTED_DOMAINS = [
 
 
 class NewsFetcher:
-    """Fetches latest AI/ML news using OpenAI web search and/or RSS scraping"""
+    """Fetches latest AI/ML news using OpenAI web search and/or RSS scraping,
+    or personal blog posts when fetch_method is 'blog'."""
 
     DEFAULT_TOPICS = [
         "OpenAI", "NVIDIA", "Google AI", "Microsoft AI",
@@ -51,7 +52,8 @@ class NewsFetcher:
         self.config = config
         openai_key = config.get('post_generation', {}).get('openai_api_key', '')
         news_config = config.get('news', {})
-        self.fetch_method = news_config.get('fetch_method', 'both')  # "ai" | "scraping" | "both"
+        # fetch_method: "ai" | "scraping" | "both" | "blog"
+        self.fetch_method = news_config.get('fetch_method', 'both')
         self.client = OpenAI(api_key=openai_key) if openai_key else None
         if self.fetch_method == 'ai' and not openai_key:
             raise ValueError("OpenAI API key is required when fetch_method is 'ai'")
@@ -60,19 +62,29 @@ class NewsFetcher:
         self.fetch_pool_size = news_config.get('fetch_pool_size', 20)
         self.max_age_hours = news_config.get('max_age_hours', 72)
 
+        # Blog-specific settings (used when fetch_method is "blog")
+        blog_config = config.get('blog', {})
+        self.blog_url = blog_config.get('url', 'https://www.abhisheksagarsanda.com/blog')
+        self.blog_source = blog_config.get('source', "Abhishek Sagar Sanda's Blog")
+        self.blog_enrich_posts = blog_config.get('enrich_posts', False)
+
     def get_latest_news(self, limit: int = 10, rank_by_value: bool = False,
                         topics: Optional[List[str]] = None) -> List[Dict]:
         """
-        Get latest AI/ML news using AI search and/or RSS scraping.
+        Get latest content — either AI/ML news (ai/scraping/both) or personal blog posts (blog).
 
         Args:
-            limit: Maximum number of articles to return
-            rank_by_value: If True, rank articles by value score
-            topics: Optional custom topics to search for
+            limit: Maximum number of articles/posts to return
+            rank_by_value: If True, rank articles by value score (not applied to blog posts)
+            topics: Optional custom topics to search for (news modes only)
 
         Returns:
-            List of article dictionaries (may include image_url from RSS)
+            List of article/post dictionaries
         """
+        # Blog mode: scrape personal blog instead of news feeds
+        if self.fetch_method == 'blog':
+            return self._get_blog_posts(limit)
+
         articles = []
         fetch_count = max(limit, self.fetch_pool_size)
 
@@ -142,6 +154,29 @@ class NewsFetcher:
                 logger.warning("news_scorer not available, returning articles as-is")
 
         return articles[:limit]
+
+    def _get_blog_posts(self, limit: int) -> List[Dict]:
+        """Scrape personal blog posts and return them as article dicts."""
+        try:
+            from blog_scraper import scrape_blog
+            posts = scrape_blog(
+                blog_url=self.blog_url,
+                limit=max(limit, self.fetch_pool_size),
+                source=self.blog_source,
+                max_age_hours=None,  # Blog posts don't expire like news
+                enrich_posts=self.blog_enrich_posts,
+            )
+            if posts:
+                logger.info(f"Fetched {len(posts)} blog posts from {self.blog_url}")
+                return posts[:limit]
+            logger.warning(f"No blog posts found at {self.blog_url}")
+            return []
+        except ImportError as e:
+            logger.error(f"blog_scraper module not available: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching blog posts: {e}", exc_info=True)
+            return []
 
     def _search_news(self, topics: List[str], limit: int) -> List[Dict]:
         """Search for news using OpenAI's web_search tool"""

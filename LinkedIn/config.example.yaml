@@ -1,44 +1,97 @@
 # AutoPost AI - LinkedIn Content Generator
 # Copy this file to config.yaml and fill in your details
 #
-# Powered by OpenAI Web Search + RSS scraping.
+# Modes:
+#   news:  fetch_method "both" | "ai" | "scraping" — post about AI/ML industry news
+#   blog:  fetch_method "blog" — post about YOUR personal blog articles (recommended!)
+#
 # Env vars can override: OPENAI_API_KEY, LINKEDIN_ACCESS_TOKEN, NEWS_FETCH_METHOD, etc.
 
-# Your LinkedIn Profile Information
+# ─────────────────────────────────────────────────────────────────────────────
+# YOUR PROFILE  (used to personalise every generated post)
+# ─────────────────────────────────────────────────────────────────────────────
 profile:
-  name: "Your Name"
-  title: "AI/ML Engineer | Data Scientist"
+  name: "Abhishek Sagar Sanda"
+  title: "AI Engineer | Teaching Assistant at Northeastern University"
+  current_role: "AI Engineer & Graduate TA, Northeastern University"
   skills:
+    - "Large Language Models (LLMs)"
+    - "Retrieval-Augmented Generation (RAG)"
+    - "AI Agents & Multi-Agent Systems"
     - "Machine Learning"
     - "Deep Learning"
-    - "Natural Language Processing"
-    - "Computer Vision"
     - "Python"
-    - "TensorFlow"
     - "PyTorch"
-  experience_years: 5
-  expertise_areas:
-    - "Neural Networks"
-    - "LLMs"
-    - "AI Research"
     - "MLOps"
+    - "Vector Databases"
+  experience_years: 3
+  expertise_areas:
+    - "LLM Fine-Tuning"
+    - "Production RAG Systems"
+    - "AI Agent Frameworks"
+    - "Transformer Architecture"
+    - "Edge AI Deployment"
+  education:
+    degree: "Master's in AI"
+    university: "Northeastern University"
+    achievements:
+      - "Teaching Assistant for AI/ML courses"
+      - "Published 30+ technical AI blog posts"
 
-# LinkedIn API Credentials
+# ─────────────────────────────────────────────────────────────────────────────
+# LINKEDIN API CREDENTIALS
+# ─────────────────────────────────────────────────────────────────────────────
 linkedin:
   client_id: "YOUR_LINKEDIN_CLIENT_ID"
   client_secret: "YOUR_LINKEDIN_CLIENT_SECRET"
   access_token: "YOUR_ACCESS_TOKEN"
   # Get these from: https://www.linkedin.com/developers/apps
 
-# News Search Settings
-news:
-  # How to fetch news: "both" (AI + RSS scraping), "ai" (OpenAI web search only), "scraping" (RSS only)
-  fetch_method: "both"
+# ─────────────────────────────────────────────────────────────────────────────
+# BLOG SETTINGS  (used when news.fetch_method is "blog")
+# ─────────────────────────────────────────────────────────────────────────────
+blog:
+  # URL of your blog listing page to scrape
+  url: "https://www.abhisheksagarsanda.com/blog"
 
-  # Model used for web search (when fetch_method is "ai" or "both")
+  # Display name used in posts
+  source: "Abhishek Sagar Sanda's Blog"
+
+  # Author name injected into post copy
+  author_name: "Abhishek Sagar Sanda"
+
+  # Your LinkedIn profile URL (added to the CTA in every blog post)
+  linkedin_url: "https://www.linkedin.com/in/sandaabhisheksagar/"
+
+  # If true, fetches each post page individually for richer meta descriptions.
+  # Slower but produces better post content. Recommended: false for speed.
+  enrich_posts: false
+
+  # Blog-specific hashtags (override the default post_generation hashtags)
+  hashtags:
+    - "#AI"
+    - "#MachineLearning"
+    - "#LLM"
+    - "#AIEngineering"
+    - "#RAG"
+    - "#AIAgents"
+    - "#MLOps"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NEWS / CONTENT SOURCE SETTINGS
+# ─────────────────────────────────────────────────────────────────────────────
+news:
+  # How to fetch content:
+  #   "blog"     — scrape YOUR personal blog (recommended for personal branding)
+  #   "both"     — AI web search + RSS scraping of tech news
+  #   "ai"       — OpenAI web search only
+  #   "scraping" — RSS feeds only
+  fetch_method: "blog"
+
+  # Model used for web search (only when fetch_method is "ai" or "both")
   search_model: "gpt-4o-mini"
 
-  # Default topics to search for (can also be changed from the UI)
+  # Topics for news search (only when fetch_method is "ai" or "both")
   topics:
     - "OpenAI"
     - "NVIDIA"
@@ -50,36 +103,47 @@ news:
     - "generative AI"
     - "LLM"
 
-  # Pool and filtering - ensures best posts from high-value articles
-  fetch_pool_size: 20      # Fetch this many articles, then pick top by score
-  max_age_hours: 72        # Only include articles from the last N hours (default 72 = 3 days)
-  min_value_score: 50      # Only use articles scoring >= this (0-110 scale). Raise to 60+ for stricter filtering.
+  # Pool size: fetch this many posts/articles, then pick the top ones
+  fetch_pool_size: 15
 
-  # Multi-Article Storytelling Mode
+  # Only for news modes: drop articles older than this many hours
+  max_age_hours: 72
+
+  # Only for news modes: minimum value score (0–110) to include an article
+  min_value_score: 50
+
+  # Multi-post mode: weave multiple blog posts into one story post
   use_multiple_articles: false
   articles_per_post: 3
 
-# Post Settings
+# ─────────────────────────────────────────────────────────────────────────────
+# POST SETTINGS
+# ─────────────────────────────────────────────────────────────────────────────
 post:
-  include_image: true    # Attach image to LinkedIn posts (og:image from article or DALL-E)
+  include_image: true    # Attach og:image from the blog post (or DALL-E fallback)
 
-# Post Generation Settings
+# ─────────────────────────────────────────────────────────────────────────────
+# POST GENERATION (AI MODEL)
+# ─────────────────────────────────────────────────────────────────────────────
 post_generation:
-  ai_model: "gpt-4"           # Model for writing posts (gpt-4 recommended for quality)
+  ai_model: "gpt-4o"          # Model for writing posts (gpt-4o recommended for quality)
   openai_api_key: "YOUR_OPENAI_API_KEY"
   tone: "professional"
   max_post_length: 3000
   include_hashtags: true
+  # Default hashtags (overridden by blog.hashtags when in blog mode)
   hashtags:
     - "#AI"
     - "#MachineLearning"
     - "#ArtificialIntelligence"
     - "#TechNews"
     - "#Innovation"
-    - "#OpenAI"
-    - "#NVIDIA"
+    - "#LLM"
+    - "#AIEngineering"
 
-# Posting Schedule
+# ─────────────────────────────────────────────────────────────────────────────
+# POSTING SCHEDULE
+# ─────────────────────────────────────────────────────────────────────────────
 schedule:
   enabled: true
   frequency: "daily"

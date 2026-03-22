@@ -164,10 +164,15 @@ class LinkedInAIAgent:
             articles_needed = self.articles_per_post if self.use_multiple_articles else 1
             top_articles = self._get_top_articles(articles, articles_needed)
 
+            is_blog_mode = self.config.get('news', {}).get('fetch_method') == 'blog'
+
             if self.use_multiple_articles and len(top_articles) >= self.articles_per_post:
                 selected_articles = top_articles[:self.articles_per_post]
                 logger.info(f"Generating multi-article post from {len(selected_articles)} articles")
-                post_content = self.post_generator.generate_multi_article_post(selected_articles)
+                if is_blog_mode:
+                    post_content = self.post_generator.generate_multi_blog_post(selected_articles)
+                else:
+                    post_content = self.post_generator.generate_multi_article_post(selected_articles)
                 article = selected_articles[0]
             else:
                 article = top_articles[0]
@@ -301,6 +306,8 @@ class LinkedInAIAgent:
 
         previews = []
 
+        is_blog_mode = self.config.get('news', {}).get('fetch_method') == 'blog'
+
         if self.use_multiple_articles and len(top_articles) >= self.articles_per_post:
             for i in range(num_posts):
                 start_idx = i * self.articles_per_post
@@ -311,7 +318,10 @@ class LinkedInAIAgent:
                 selected_articles = top_articles[start_idx:end_idx]
                 score = selected_articles[0].get('value_score', 0)
                 logger.info(f"Generating post {i+1}/{num_posts} from top articles (score: {score})")
-                post_content = self.post_generator.generate_multi_article_post(selected_articles)
+                if is_blog_mode:
+                    post_content = self.post_generator.generate_multi_blog_post(selected_articles)
+                else:
+                    post_content = self.post_generator.generate_multi_article_post(selected_articles)
                 previews.append({
                     'article': selected_articles[0],
                     'articles': selected_articles,

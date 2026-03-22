@@ -30,8 +30,11 @@ class PostGenerator:
         self.hashtags = self.post_config.get('hashtags', [])
 
     def generate_post(self, article: Dict) -> str:
-        """Generate a LinkedIn post from a news article"""
-        
+        """Generate a LinkedIn post from a news article or blog post"""
+        # Route blog posts to the dedicated blog post generator
+        if article.get('content_type') == 'blog':
+            return self.generate_blog_post(article)
+
         # Build context about the user
         profile_context = self._build_profile_context()
         
@@ -151,6 +154,331 @@ class PostGenerator:
             logger.error(f"Error generating multi-article post: {e}")
             # Fallback to single article mode
             return self.generate_post(articles[0])
+
+    def generate_blog_post(self, blog_post: Dict) -> str:
+        """
+        Generate an engaging LinkedIn post promoting a personal blog article.
+        Highlights the author's profile, shares key insights, and invites the
+        audience to read, connect, follow the blog, and engage.
+        """
+        profile_context = self._build_profile_context()
+        prompt = self._build_blog_prompt(blog_post, profile_context)
+
+        blog_config = self.config.get('blog', {})
+        author_name = blog_config.get('author_name', self.profile.get('name', 'the author'))
+        linkedin_url = blog_config.get('linkedin_url', '')
+        blog_site_url = blog_config.get('url', 'https://www.abhisheksagarsanda.com/blog')
+
+        system_prompt = (
+            f"You are a personal brand content strategist and LinkedIn ghostwriter for {author_name}, "
+            "an AI Engineer and educator. Your goal is to write authentic, knowledgeable LinkedIn posts "
+            "that showcase the author's deep expertise, provide genuine value to the reader, and organically "
+            "invite the audience to connect, follow the blog, and engage. "
+            "Your writing feels like a brilliant colleague sharing hard-won knowledge — not marketing copy. "
+            "You create curiosity, demonstrate credibility, and leave the reader wanting more. "
+            "You use a warm, confident, and intellectually stimulating tone. "
+            "Posts are long-form (900-2000 characters), structured for easy reading with short paragraphs "
+            "and strategic white space, use 3-6 emojis sparingly, and end with a thought-provoking question."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.78,
+                max_tokens=2800,
+            )
+            post_content = response.choices[0].message.content.strip()
+
+            if len(post_content) < 700:
+                logger.warning(f"Blog post too short ({len(post_content)} chars), consider re-generating.")
+
+            # Append blog-specific hashtags if configured, otherwise use defaults
+            if self.include_hashtags:
+                blog_hashtags = blog_config.get('hashtags', self.hashtags)
+                limited = blog_hashtags[:7] if len(blog_hashtags) > 7 else blog_hashtags
+                post_content = f"{post_content}\n\n{' '.join(limited)}"
+
+            if len(post_content) > self.max_length:
+                post_content = post_content[:self.max_length - 3] + "..."
+
+            return post_content
+
+        except Exception as e:
+            logger.error(f"Error generating blog post: {e}")
+            return self._generate_fallback_blog_post(blog_post)
+
+    def generate_multi_blog_post(self, blog_posts: List[Dict]) -> str:
+        """
+        Generate a storytelling LinkedIn post weaving together multiple personal blog posts.
+        Useful for weekly roundups or thematic series.
+        """
+        if len(blog_posts) < 2:
+            return self.generate_blog_post(blog_posts[0])
+
+        profile_context = self._build_profile_context()
+        prompt = self._build_blog_storytelling_prompt(blog_posts, profile_context)
+
+        blog_config = self.config.get('blog', {})
+        author_name = blog_config.get('author_name', self.profile.get('name', 'the author'))
+
+        system_prompt = (
+            f"You are a personal brand content strategist for {author_name}, an AI Engineer. "
+            "Write a compelling LinkedIn post that weaves together multiple blog articles into a cohesive "
+            "narrative. The post should feel like an author sharing a journey of discovery — not a listicle. "
+            "Demonstrate deep expertise, spark curiosity, and warmly invite readers to connect and explore "
+            "the full articles. Use authentic first-person voice, 5-8 emojis strategically, and end with "
+            "an engaging question that sparks discussion."
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.78,
+                max_tokens=3200,
+            )
+            post_content = response.choices[0].message.content.strip()
+
+            if self.include_hashtags:
+                blog_hashtags = blog_config.get('hashtags', self.hashtags)
+                limited = blog_hashtags[:7] if len(blog_hashtags) > 7 else blog_hashtags
+                post_content = f"{post_content}\n\n{' '.join(limited)}"
+
+            if len(post_content) > self.max_length:
+                post_content = post_content[:self.max_length - 3] + "..."
+
+            return post_content
+
+        except Exception as e:
+            logger.error(f"Error generating multi-blog post: {e}")
+            return self.generate_blog_post(blog_posts[0])
+
+    def _build_blog_prompt(self, blog_post: Dict, profile_context: str) -> str:
+        """Build the prompt for a single blog post promotion."""
+        title = blog_post.get('title', 'My Latest Blog Post')
+        description = blog_post.get('description', '')
+        url = blog_post.get('url', '')
+        tags = blog_post.get('tags', [])
+        tags_str = ", ".join(tags) if tags else "AI, Machine Learning, LLM"
+        published_at = blog_post.get('published_at', '')
+
+        blog_config = self.config.get('blog', {})
+        author_name = blog_config.get('author_name', self.profile.get('name', 'I'))
+        blog_site_url = blog_config.get('url', 'https://www.abhisheksagarsanda.com/blog')
+        linkedin_url = blog_config.get('linkedin_url', '')
+
+        connect_line = ""
+        if linkedin_url:
+            connect_line = f"\n- Invite readers to connect with {author_name} on LinkedIn: {linkedin_url}"
+
+        prompt = f"""Write an engaging, knowledgeable LinkedIn post that promotes this personal blog article written by {author_name}.
+
+**YOUR CORE MISSION:**
+Make this post so insightful and valuable that readers immediately want to:
+1. Read the full blog article (link included)
+2. Follow {author_name}'s blog for more expertise
+3. Connect with {author_name} on LinkedIn
+4. Comment with their thoughts or questions
+5. Share this post with their network
+
+**CRITICAL: FIRST 2 LINES ARE EVERYTHING**
+LinkedIn only shows the first 2 lines before "...see more". These lines MUST create irresistible curiosity about the blog topic.
+
+---
+
+**MANDATORY POST STRUCTURE (output ONLY smooth prose — NO section headers, NO numbers):**
+
+**1. POWERFUL HOOK (EXACTLY 2 LINES — NO markdown, NO bold)**
+- Open with a provocative statement, surprising insight, or bold claim from the blog
+- Second line deepens the intrigue or adds a surprising twist
+- Use 1-2 emojis strategically (never in both lines)
+- Make the reader FEEL they will miss something if they scroll past
+- Example hooks:
+  * "Most engineers are building RAG systems wrong. And I wrote a 15-minute deep-dive to prove it."
+  * "I spent 3 months benchmarking every major LLM evaluation framework. The results shocked me. 🧠"
+  * "The transformer architecture has a dirty secret that most tutorials skip over."
+- Add blank line after
+
+**2. WHAT THIS ARTICLE IS ABOUT (3-4 lines)**
+- Give a crisp, compelling overview of the blog post's core idea
+- Mention the specific problem it solves or question it answers
+- Use the blog's topic/tags naturally: {tags_str}
+- Keep it conversational — like you're telling a smart colleague what you wrote
+- Add blank line after
+
+**3. 3-4 KEY INSIGHTS (each as a short punchy paragraph, 2-3 lines each)**
+- Extract the most valuable, non-obvious insights from the blog's title and description
+- Each insight should feel like a mini-revelation — something the reader didn't know or hadn't thought about
+- Ground each insight in real-world AI/ML practice or genuine technical depth
+- Reference specific concepts, techniques, or frameworks relevant to: {tags_str}
+- Keep paragraphs to 2-3 lines max for easy scanning
+- Add blank line between each insight
+
+**4. AUTHOR SPOTLIGHT (2-3 lines)**
+- Introduce {author_name} naturally and credibly (not as a sales pitch)
+- Reference their profile: {profile_context}
+- Mention the blog ({blog_site_url}) as a resource for engineers who want to stay ahead in AI
+- Sound proud but humble — like a friend vouching for someone brilliant
+- Add blank line after
+
+**5. CALL-TO-ACTION (3-4 lines)**
+- Invite readers to: read the full article at {url}
+- Invite them to follow the blog for weekly deep-dives on AI/LLMs/ML engineering
+- Warmly invite connections: "If you're building with AI or want to exchange ideas, let's connect"{connect_line}
+- Make the CTA feel natural and generous — not pushy or salesy
+- Add blank line after
+
+**6. ENGAGING QUESTION (1-2 lines)**
+- End with a thought-provoking question that directly relates to the blog topic
+- Make it specific enough that experts will have opinions: NOT "What do you think?" but something like "Are you using sparse attention in production yet, or still on full attention?"
+- This is the spark for comments and discussion
+
+---
+
+**WRITING REQUIREMENTS:**
+- MINIMUM LENGTH: 900 characters (excluding hashtags) — make it substantial and worth reading
+- TARGET LENGTH: 1200-1800 characters
+- MAXIMUM LENGTH: {self.max_length} characters
+- Emojis: 3-6 total, placed naturally — never clustered together
+- Paragraph length: 2-4 lines max — no walls of text
+- White space: blank line between each section for readability
+- NO markdown formatting (LinkedIn shows it as raw text)
+- First person voice throughout ("I wrote", "In my research", "I discovered")
+- Authoritative yet approachable — like a knowledgeable friend, not a corporation
+- Technically substantive — reference real AI/ML concepts, not just buzzwords
+- Authentic: avoid phrases like "game-changer", "delve into", "it's important to note"
+
+**BLOG POST INFORMATION:**
+Title: {title}
+Description: {description}
+URL: {url}
+Topics/Tags: {tags_str}
+Published: {published_at}
+
+**AUTHOR PROFILE:**
+{profile_context}
+
+Write the complete LinkedIn post now. Output ONLY the post content — clean prose, no headers, no section labels, no bullet points. The blog URL should be mentioned naturally in the CTA section."""
+
+        return prompt
+
+    def _build_blog_storytelling_prompt(self, blog_posts: List[Dict], profile_context: str) -> str:
+        """Build a storytelling prompt for multiple blog posts (e.g. weekly roundup)."""
+        blog_config = self.config.get('blog', {})
+        author_name = blog_config.get('author_name', self.profile.get('name', 'I'))
+        blog_site_url = blog_config.get('url', 'https://www.abhisheksagarsanda.com/blog')
+        linkedin_url = blog_config.get('linkedin_url', '')
+
+        posts_info = []
+        for i, post in enumerate(blog_posts, 1):
+            tags = ", ".join(post.get('tags', []))
+            posts_info.append(
+                f"Article {i}:\n"
+                f"- Title: {post.get('title', '')}\n"
+                f"- Description: {post.get('description', '')}\n"
+                f"- URL: {post.get('url', '')}\n"
+                f"- Topics: {tags or 'AI/ML'}"
+            )
+        posts_text = "\n\n".join(posts_info)
+
+        connect_line = f"\n- Invite connections on LinkedIn: {linkedin_url}" if linkedin_url else ""
+
+        prompt = f"""Write an engaging LinkedIn post from {author_name} that weaves together {len(blog_posts)} recent blog articles into a compelling narrative — like an author sharing the thread connecting their latest work.
+
+**YOUR GOAL:**
+Make readers feel the intellectual excitement of following {author_name}'s blog journey. Create FOMO — they should feel they're missing out on critical AI knowledge by not following. Invite genuine engagement.
+
+**CRITICAL: FIRST 2 LINES — Make them unforgettable**
+Hook the reader with the unifying theme connecting all these articles.
+
+---
+
+**STRUCTURE (output ONLY smooth prose, NO headers, NO bullets, NO section labels):**
+
+1. HOOK (2 lines): Bold opening that captures the connecting theme across these articles. 1-2 emojis.
+(blank line)
+
+2. THE THREAD (3-4 lines): What pattern or journey connects these pieces? Why are they writing about this now? Create narrative momentum.
+(blank line)
+
+3. ARTICLE HIGHLIGHTS (weave naturally, 2-3 lines per article):
+For each article: share the most surprising or valuable insight, reference its URL naturally as "read more here: [url]" or "full breakdown at [url]"
+(blank line between each)
+
+4. THE BIGGER PICTURE (3-4 lines): What does the totality of this work reveal about the direction of AI/ML? Show the thought leadership.
+(blank line)
+
+5. AUTHOR & BLOG SPOTLIGHT (2-3 lines):
+- About {author_name}: {profile_context}
+- The blog ({blog_site_url}) publishes deep-dives for engineers who want to build better AI systems
+(blank line)
+
+6. CTA (3-4 lines):
+- Follow the blog for weekly expert content
+- Connect with {author_name} to exchange ideas{connect_line}
+- Invite readers to share which topic resonates most
+(blank line)
+
+7. ENGAGING QUESTION (1-2 lines): Spark debate or reflection about the themes covered.
+
+---
+
+**REQUIREMENTS:**
+- MINIMUM LENGTH: 1100 characters (excluding hashtags)
+- TARGET LENGTH: 1500-2200 characters
+- Emojis: 5-8 total, spaced naturally
+- NO markdown formatting
+- Authentic first-person voice
+- Technically substantive — real insights, not vague buzzwords
+- Short paragraphs (2-4 lines max), blank line between sections
+
+**BLOG ARTICLES:**
+{posts_text}
+
+**AUTHOR PROFILE:**
+{profile_context}
+
+Write the complete LinkedIn post now. Output ONLY the post content — no headers, no section labels."""
+
+        return prompt
+
+    def _generate_fallback_blog_post(self, blog_post: Dict) -> str:
+        """Simple fallback post when AI generation fails."""
+        title = blog_post.get('title', 'My Latest Blog Post')
+        description = blog_post.get('description', '')
+        url = blog_post.get('url', '')
+        tags = blog_post.get('tags', [])
+        tags_str = " ".join(f"#{t.replace(' ', '')}" for t in tags[:5]) if tags else "#AI #MachineLearning"
+        author_name = self.config.get('blog', {}).get('author_name', self.profile.get('name', ''))
+        blog_url = self.config.get('blog', {}).get('url', 'https://www.abhisheksagarsanda.com/blog')
+
+        post = f"""🧠 Just published a new deep-dive: {title}
+
+{description[:350] if description else ''}
+
+If you're working with AI systems, this one's worth 15 minutes of your time.
+
+👉 Read the full article: {url}
+
+I write practical, in-depth content on AI engineering, LLMs, and production ML systems at {blog_url} — designed for engineers who want to build smarter, not just faster.
+
+Follow along if this is the kind of content you want more of. And if you're building in the AI space, I'd love to connect and exchange ideas.
+
+What's your current biggest challenge with {tags[0] if tags else 'AI systems'}?
+
+{tags_str}"""
+
+        if self.include_hashtags and self.hashtags:
+            post += f"\n{' '.join(self.hashtags[:5])}"
+
+        return post[:self.max_length]
 
     def _build_profile_context(self) -> str:
         """Build a context string about the user's profile"""

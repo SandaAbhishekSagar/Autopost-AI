@@ -1,6 +1,6 @@
 # AutoPost AI - LinkedIn Content Generator
 
-An intelligent agent that automatically searches the web for the latest AI technology news and generates professional LinkedIn posts. Powered by **OpenAI's web search** — no RSS feeds, no API keys for news services, no web scraping.
+An intelligent agent that generates professional LinkedIn posts from **your** blog articles (recommended) or from AI web search + tech RSS feeds. **Blog mode** pulls posts from [abhisheksagarsanda.com](https://www.abhisheksagarsanda.com/blog) via the site’s Netlify API. News modes use **OpenAI web search** and/or RSS.
 
 ## Features
 
@@ -116,40 +116,53 @@ linkedin:
 
 ## How It Works
 
-1. **AI Web Search**: OpenAI's web search finds the latest AI news from across the internet
-2. **Value Scoring**: Articles are scored by impact, relevance, and recency (0-110 scale)
-3. **Post Generation**: GPT-4 creates a professional LinkedIn post incorporating the news and your profile
-4. **Review & Edit**: Preview the post in the web UI, edit if needed
-5. **Publish**: One-click posting to LinkedIn
+**Blog mode (`news.fetch_method: blog`):**
 
-## Architecture
+1. Fetches your latest posts from your site’s blog API (`/.netlify/functions/blog-list`)
+2. **Post generation**: GPT creates a LinkedIn post using the article + your **profile** (resume-style fields in `config.yaml`)
+3. **Review & edit** in the web UI, then **publish** to LinkedIn
+
+**News modes (`ai`, `scraping`, or `both`):**
+
+1. OpenAI web search and/or RSS feeds → article pool
+2. Optional **value scoring** (0–110) to pick the best articles
+3. Post generation → LinkedIn
+
+## Architecture (blog mode)
 
 ```
-OpenAI Web Search → News Articles → Value Scoring → Post Generation → LinkedIn API
-                                                          ↑
-                                                    Your Profile Info
+Blog API (Netlify) → Your articles → Post generation (OpenAI) → LinkedIn API
+                                              ↑
+                                    Profile / resume context
 ```
-
-No traditional scraping, RSS parsing, or third-party news APIs needed. OpenAI handles the web search, making the system simpler and more reliable.
 
 ## Deployment
 
-### Railway
+### Production server
 
-The app is configured for Railway deployment:
+The **Procfile** uses **Gunicorn** (see `requirements.txt`). For local development, use:
 
 ```bash
-# Uses Procfile: web: python3 app.py
-# Set environment variables in Railway dashboard
+python app.py
 ```
 
-### Environment Variables for Production
+### Railway / Render / Fly.io
 
-Set these in your deployment platform:
-- `OPENAI_API_KEY`
-- `LINKEDIN_ACCESS_TOKEN`
-- `PORT` (usually auto-set)
-- `PROFILE_NAME`, `PROFILE_TITLE`, `PROFILE_SKILLS`
+1. Set the service **root directory** to **`LinkedIn`** (this repo nests the app one level down).
+2. See **`DEPLOY.md`** for the full checklist, health endpoint (`GET /health`), and environment variables.
+
+### Environment variables (production)
+
+Minimum:
+
+| Variable | Purpose |
+|----------|---------|
+| `OPENAI_API_KEY` | Post generation |
+| `LINKEDIN_ACCESS_TOKEN` | Publishing |
+| `NEWS_FETCH_METHOD` | Use `blog` for your blog posts |
+| `PORT` | Set automatically on most hosts |
+
+Optional profile/blog overrides: `PROFILE_NAME`, `PROFILE_TITLE`, `PROFILE_SUMMARY`, `BLOG_URL`, `BLOG_LINKEDIN_URL`, `BLOG_HASHTAGS`, etc. See `DEPLOY.md`.
 
 ## Troubleshooting
 

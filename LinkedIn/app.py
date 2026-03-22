@@ -70,6 +70,13 @@ def init_agent():
         return False
 
 
+@app.route('/health')
+@app.route('/healthz')
+def health():
+    """Health check for Railway, Render, Fly.io, Kubernetes, etc."""
+    return jsonify({'status': 'ok', 'service': 'autopost-ai'}), 200
+
+
 @app.route('/')
 def index():
     """Main page"""

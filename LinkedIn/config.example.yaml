@@ -1,151 +1,136 @@
-# AutoPost AI - LinkedIn Content Generator
-# Copy this file to config.yaml and fill in your details
+# AutoPost AI — LinkedIn + blog post generator
+# Copy to config.yaml (gitignored). For hosting, prefer env vars — see DEPLOY.md
 #
-# Modes:
-#   news:  fetch_method "both" | "ai" | "scraping" — post about AI/ML industry news
-#   blog:  fetch_method "blog" — post about YOUR personal blog articles (recommended!)
-#
-# Env vars can override: OPENAI_API_KEY, LINKEDIN_ACCESS_TOKEN, NEWS_FETCH_METHOD, etc.
+# Content mode: news.fetch_method "blog" = your articles from abhisheksagarsanda.com
 
 # ─────────────────────────────────────────────────────────────────────────────
-# YOUR PROFILE  (used to personalise every generated post)
+# PROFILE — used to personalize every generated post (aligned with your resume)
 # ─────────────────────────────────────────────────────────────────────────────
 profile:
   name: "Abhishek Sagar Sanda"
-  title: "AI Engineer | Teaching Assistant at Northeastern University"
-  current_role: "AI Engineer & Graduate TA, Northeastern University"
+  location: "Boston, MA"
+
+  title: "Lead Conversational AI & RAG Systems Engineer | Applied AI Engineer (Conversational Systems)"
+
+  current_role: >
+    Lead Conversational AI & RAG Systems Engineer (Independent AI products: Northeastern University AI Chatbot,
+    SupportCopilot). Applied AI Engineer (Conversational Systems) at G-nee. Former Research Software Engineer Intern
+    at Virtual Presenz Inc.; former .NET Full Stack Developer at HCL Technologies.
+
+  professional_summary: >
+    Conversational AI & RAG Systems Engineer with 5+ years of software delivery experience and 3+ years building
+    production chatbot and voice AI platforms. Expert in multi-channel conversational agent development (voice/chat),
+    intent recognition, training dataset curation, and conversation design standards. Proven track record deploying
+    chatbots handling 80,000+ documents, 50+ concurrent queries, and 99.7% uptime. Deep experience with NLP,
+    speech processing (STT/TTS, SSML), API-driven fulfillment, and RAG-powered knowledge retrieval. I architect
+    backend orchestration, dialogue management, and grounded-response validation for reliable conversational AI at scale.
+    Strong foundation in CI/CD, Agile/DevOps, and software engineering best practices.
+
+  portfolio_url: "https://www.abhisheksagarsanda.com"
+
   skills:
-    - "Large Language Models (LLMs)"
-    - "Retrieval-Augmented Generation (RAG)"
-    - "AI Agents & Multi-Agent Systems"
-    - "Machine Learning"
-    - "Deep Learning"
-    - "Python"
-    - "PyTorch"
-    - "MLOps"
-    - "Vector Databases"
-  experience_years: 3
+    - "Conversational AI & multi-channel chatbots (voice/chat/web)"
+    - "RAG pipelines — LangChain, LlamaIndex, hybrid retrieval, reranking, source attribution"
+    - "Intent recognition, NLU/NLP, training data curation & optimization"
+    - "Multi-turn dialogue management, session state, escalation & fallback routing"
+    - "Speech: STT/TTS, SSML, prosody, real-time audio streaming"
+    - "Vector embeddings, semantic search — ChromaDB, Pinecone"
+    - "Python, FastAPI, Node.js, REST APIs, Redis, PostgreSQL, Celery"
+    - "AWS, Azure, serverless (Lambda), CI/CD (GitHub Actions, Azure DevOps)"
+    - "Next.js, React, TypeScript — embeddable chat widgets & dashboards"
+
+  experience_years: 5
+
   expertise_areas:
-    - "LLM Fine-Tuning"
-    - "Production RAG Systems"
-    - "AI Agent Frameworks"
-    - "Transformer Architecture"
-    - "Edge AI Deployment"
+    - "Production RAG & grounded generation"
+    - "Conversational AI orchestration & agentic workflows"
+    - "Voice AI & telephony (Twilio, real-time webhooks)"
+    - "MLOps-style evaluation: confidence scoring, QA, analytics"
+    - "Enterprise integration & multi-tenant chatbot platforms"
+
+  notable_metrics:
+    - "Northeastern AI chatbot: 24/7 student support, 99.7% uptime, 50+ concurrent conversations, 80,000+ documents"
+    - "Intent recognition improved 82% → 96% via training data optimization (10,000+ curated queries)"
+    - "End-to-end latency reduced from 12+ seconds to sub-5 seconds (GPU retrieval, reranking, prompt tuning)"
+    - "Hybrid retrieval + query expansion cut zero-result failures and lifted answer relevance ~40%"
+    - "G-nee: intent routing 78% → 94% (5,000+ labeled conversations); 92% test coverage on conversation flows"
+
+  credentials:
+    - "Teaching Assistant — CSYE 7380 Theory & Applications of AI Generative Modeling (Northeastern, Sep–Dec 2025)"
+    - "Northeastern Roli.AI Hackathon winner — adaptive conversational AI chatbot"
+    - "Co-author — Real-Time Performance Analysis of TensorRT Optimization for High-Speed Object Detection (2025)"
+    - "MIT IMPACT Symposium 2025 — poster (Virtual Presenz public-safety analytics)"
+
+  publications:
+    - "Co-author, TensorRT optimization for high-speed object detection (2025)"
+    - "Poster, MIT IMPACT Symposium 2025"
+
   education:
-    degree: "Master's in AI"
-    university: "Northeastern University"
+    degree: "Master of Science in Information Systems"
+    university: "Northeastern University, Boston, MA"
+    gpa: "3.82/4.0"
     achievements:
-      - "Teaching Assistant for AI/ML courses"
-      - "Published 30+ technical AI blog posts"
+      - "Coursework: AI Generative Modeling, Advanced Techniques with LLMs, NLP, Cloud Computing"
+      - "B.Tech Electrical, Electronics & Communications Engineering — MGIT, Hyderabad (2018–2022)"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# LINKEDIN API CREDENTIALS
+# LINKEDIN API (never commit real tokens — use env vars in production)
 # ─────────────────────────────────────────────────────────────────────────────
 linkedin:
   client_id: "YOUR_LINKEDIN_CLIENT_ID"
   client_secret: "YOUR_LINKEDIN_CLIENT_SECRET"
   access_token: "YOUR_ACCESS_TOKEN"
-  # Get these from: https://www.linkedin.com/developers/apps
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BLOG SETTINGS  (used when news.fetch_method is "blog")
+# BLOG — content source when news.fetch_method is "blog"
 # ─────────────────────────────────────────────────────────────────────────────
 blog:
-  # URL of your blog listing page to scrape
   url: "https://www.abhisheksagarsanda.com/blog"
-
-  # Display name used in posts
   source: "Abhishek Sagar Sanda's Blog"
-
-  # Author name injected into post copy
   author_name: "Abhishek Sagar Sanda"
-
-  # Your LinkedIn profile URL (added to the CTA in every blog post)
   linkedin_url: "https://www.linkedin.com/in/sandaabhisheksagar/"
-
-  # If true, fetches each post page individually for richer meta descriptions.
-  # Slower but produces better post content. Recommended: false for speed.
   enrich_posts: false
-
-  # Blog-specific hashtags (override the default post_generation hashtags)
   hashtags:
-    - "#AI"
-    - "#MachineLearning"
+    - "#ConversationalAI"
+    - "#RAG"
     - "#LLM"
     - "#AIEngineering"
-    - "#RAG"
-    - "#AIAgents"
-    - "#MLOps"
+    - "#NLP"
+    - "#Chatbots"
+    - "#MachineLearning"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# NEWS / CONTENT SOURCE SETTINGS
 # ─────────────────────────────────────────────────────────────────────────────
 news:
-  # How to fetch content:
-  #   "blog"     — scrape YOUR personal blog (recommended for personal branding)
-  #   "both"     — AI web search + RSS scraping of tech news
-  #   "ai"       — OpenAI web search only
-  #   "scraping" — RSS feeds only
   fetch_method: "blog"
-
-  # Model used for web search (only when fetch_method is "ai" or "both")
   search_model: "gpt-4o-mini"
-
-  # Topics for news search (only when fetch_method is "ai" or "both")
   topics:
     - "OpenAI"
-    - "NVIDIA"
-    - "Google AI"
-    - "Microsoft AI"
-    - "Meta AI"
-    - "Anthropic"
-    - "AI models"
-    - "generative AI"
+    - "RAG"
     - "LLM"
-
-  # Pool size: fetch this many posts/articles, then pick the top ones
+    - "Conversational AI"
   fetch_pool_size: 15
-
-  # Only for news modes: drop articles older than this many hours
   max_age_hours: 72
-
-  # Only for news modes: minimum value score (0–110) to include an article
   min_value_score: 50
-
-  # Multi-post mode: weave multiple blog posts into one story post
   use_multiple_articles: false
   articles_per_post: 3
 
-# ─────────────────────────────────────────────────────────────────────────────
-# POST SETTINGS
-# ─────────────────────────────────────────────────────────────────────────────
 post:
-  include_image: true    # Attach og:image from the blog post (or DALL-E fallback)
+  include_image: true
 
-# ─────────────────────────────────────────────────────────────────────────────
-# POST GENERATION (AI MODEL)
-# ─────────────────────────────────────────────────────────────────────────────
 post_generation:
-  ai_model: "gpt-4o"          # Model for writing posts (gpt-4o recommended for quality)
+  ai_model: "gpt-4o"
   openai_api_key: "YOUR_OPENAI_API_KEY"
   tone: "professional"
   max_post_length: 3000
   include_hashtags: true
-  # Default hashtags (overridden by blog.hashtags when in blog mode)
   hashtags:
     - "#AI"
     - "#MachineLearning"
-    - "#ArtificialIntelligence"
-    - "#TechNews"
-    - "#Innovation"
-    - "#LLM"
-    - "#AIEngineering"
+    - "#ConversationalAI"
+    - "#RAG"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# POSTING SCHEDULE
-# ─────────────────────────────────────────────────────────────────────────────
 schedule:
   enabled: true
   frequency: "daily"
   time: "09:00"
-  timezone: "UTC"
+  timezone: "America/New_York"

@@ -169,9 +169,10 @@ class PostGenerator:
         linkedin_url = blog_config.get('linkedin_url', '')
         blog_site_url = blog_config.get('url', 'https://www.abhisheksagarsanda.com/blog')
 
+        role_line = self.profile.get('title') or self.profile.get('current_role') or 'AI Engineer and educator'
         system_prompt = (
             f"You are a personal brand content strategist and LinkedIn ghostwriter for {author_name}, "
-            "an AI Engineer and educator. Your goal is to write authentic, knowledgeable LinkedIn posts "
+            f"whose professional positioning is: {role_line}. Your goal is to write authentic, knowledgeable LinkedIn posts "
             "that showcase the author's deep expertise, provide genuine value to the reader, and organically "
             "invite the audience to connect, follow the blog, and engage. "
             "Your writing feels like a brilliant colleague sharing hard-won knowledge — not marketing copy. "
@@ -481,29 +482,57 @@ What's your current biggest challenge with {tags[0] if tags else 'AI systems'}?
         return post[:self.max_length]
 
     def _build_profile_context(self) -> str:
-        """Build a context string about the user's profile"""
+        """Build a context string about the user's profile (resume-aware)."""
         context_parts = []
-        
+
         if self.profile.get('name'):
             context_parts.append(f"Name: {self.profile['name']}")
-        
+
+        if self.profile.get('location'):
+            context_parts.append(f"Location: {self.profile['location']}")
+
         if self.profile.get('title'):
-            context_parts.append(f"Title: {self.profile['title']}")
-        
+            context_parts.append(f"Professional title / headline: {self.profile['title']}")
+
         if self.profile.get('current_role'):
-            context_parts.append(f"Current Role: {self.profile['current_role']}")
-        
+            context_parts.append(f"Current role(s): {self.profile['current_role']}")
+
+        if self.profile.get('professional_summary'):
+            summary = str(self.profile['professional_summary']).strip()
+            if len(summary) > 1400:
+                summary = summary[:1397] + "..."
+            context_parts.append(f"Professional summary: {summary}")
+
+        if self.profile.get('portfolio_url'):
+            context_parts.append(f"Portfolio / website: {self.profile['portfolio_url']}")
+
         if self.profile.get('skills'):
             skills = ", ".join(self.profile['skills'])
-            context_parts.append(f"Technical Skills: {skills}")
-        
-        if self.profile.get('experience_years'):
-            context_parts.append(f"Experience: {self.profile['experience_years']} years")
-        
+            context_parts.append(f"Technical skills: {skills}")
+
+        if self.profile.get('experience_years') is not None:
+            context_parts.append(f"Years of relevant experience: {self.profile['experience_years']}")
+
         if self.profile.get('expertise_areas'):
             expertise = ", ".join(self.profile['expertise_areas'])
-            context_parts.append(f"Expertise Areas: {expertise}")
-        
+            context_parts.append(f"Expertise areas: {expertise}")
+
+        if self.profile.get('notable_metrics'):
+            metrics = self.profile['notable_metrics']
+            if isinstance(metrics, list):
+                for m in metrics:
+                    context_parts.append(f"Impact / proof point: {m}")
+
+        if self.profile.get('credentials'):
+            creds = self.profile['credentials']
+            if isinstance(creds, list):
+                context_parts.append("Credentials & leadership: " + "; ".join(creds))
+
+        if self.profile.get('publications'):
+            pubs = self.profile['publications']
+            if isinstance(pubs, list):
+                context_parts.append("Publications & talks: " + "; ".join(pubs))
+
         # Add education information
         if self.profile.get('education'):
             edu = self.profile['education']
@@ -511,11 +540,11 @@ What's your current biggest challenge with {tags[0] if tags else 'AI systems'}?
             if edu.get('gpa'):
                 edu_str += f" (GPA: {edu['gpa']})"
             context_parts.append(edu_str)
-            
+
             if edu.get('achievements'):
                 achievements = ", ".join(edu['achievements'])
-                context_parts.append(f"Notable Achievements: {achievements}")
-        
+                context_parts.append(f"Academic highlights: {achievements}")
+
         return "\n".join(context_parts)
 
     def _build_prompt(self, article: Dict, profile_context: str) -> str:

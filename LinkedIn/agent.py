@@ -89,13 +89,58 @@ class LinkedInAIAgent:
             logger.warning("LINKEDIN_ACCESS_TOKEN not found in environment variables")
             return None
 
+        profile_name = os.environ.get('PROFILE_NAME', 'Your Name')
+        profile_skills = os.environ.get(
+            'PROFILE_SKILLS',
+            'RAG,Conversational AI,LangChain,LlamaIndex,Python,Vector databases'
+        ).split(',')
+        profile_expertise = os.environ.get(
+            'PROFILE_EXPERTISE',
+            'Conversational AI,RAG systems,LLM production,Dialogue management'
+        ).split(',')
+
+        profile = {
+            'name': profile_name,
+            'title': os.environ.get('PROFILE_TITLE', 'Conversational AI & RAG Systems Engineer'),
+            'location': os.environ.get('PROFILE_LOCATION', ''),
+            'current_role': os.environ.get('PROFILE_CURRENT_ROLE', ''),
+            'professional_summary': os.environ.get('PROFILE_SUMMARY', ''),
+            'portfolio_url': os.environ.get('PROFILE_PORTFOLIO_URL', 'https://www.abhisheksagarsanda.com'),
+            'skills': [s.strip() for s in profile_skills if s.strip()],
+            'experience_years': int(os.environ.get('PROFILE_EXPERIENCE_YEARS', '5')),
+            'expertise_areas': [e.strip() for e in profile_expertise if e.strip()],
+        }
+
+        # Optional list envs: pipe-separated proof points
+        metrics_raw = os.environ.get('PROFILE_NOTABLE_METRICS', '')
+        if metrics_raw:
+            profile['notable_metrics'] = [m.strip() for m in metrics_raw.split('|') if m.strip()]
+
+        creds_raw = os.environ.get('PROFILE_CREDENTIALS', '')
+        if creds_raw:
+            profile['credentials'] = [c.strip() for c in creds_raw.split('|') if c.strip()]
+
+        pubs_raw = os.environ.get('PROFILE_PUBLICATIONS', '')
+        if pubs_raw:
+            profile['publications'] = [p.strip() for p in pubs_raw.split('|') if p.strip()]
+
+        blog_hashtags = os.environ.get(
+            'BLOG_HASHTAGS',
+            '#AI,#RAG,#ConversationalAI,#LLM,#MachineLearning,#NLP'
+        ).split(',')
+
         config = {
-            'profile': {
-                'name': os.environ.get('PROFILE_NAME', 'Your Name'),
-                'title': os.environ.get('PROFILE_TITLE', 'AI/ML Engineer'),
-                'skills': os.environ.get('PROFILE_SKILLS', 'Machine Learning,Deep Learning,Python').split(','),
-                'experience_years': int(os.environ.get('PROFILE_EXPERIENCE_YEARS', '5')),
-                'expertise_areas': os.environ.get('PROFILE_EXPERTISE', 'AI Research,MLOps').split(',')
+            'profile': profile,
+            'blog': {
+                'url': os.environ.get('BLOG_URL', 'https://www.abhisheksagarsanda.com/blog'),
+                'source': os.environ.get('BLOG_SOURCE', "Abhishek Sagar Sanda's Blog"),
+                'author_name': os.environ.get('BLOG_AUTHOR_NAME', profile_name),
+                'linkedin_url': os.environ.get(
+                    'BLOG_LINKEDIN_URL',
+                    'https://www.linkedin.com/in/sandaabhisheksagar/'
+                ),
+                'enrich_posts': os.environ.get('BLOG_ENRICH_POSTS', 'false').lower() == 'true',
+                'hashtags': [h.strip() for h in blog_hashtags if h.strip()],
             },
             'linkedin': {
                 'client_id': os.environ.get('LINKEDIN_CLIENT_ID', ''),
@@ -103,7 +148,7 @@ class LinkedInAIAgent:
                 'access_token': linkedin_access_token
             },
             'news': {
-                'fetch_method': os.environ.get('NEWS_FETCH_METHOD', 'both'),
+                'fetch_method': os.environ.get('NEWS_FETCH_METHOD', 'blog'),
                 'search_model': os.environ.get('SEARCH_MODEL', 'gpt-4o-mini'),
                 'topics': os.environ.get(
                     'NEWS_TOPICS',
@@ -119,7 +164,7 @@ class LinkedInAIAgent:
                 'include_image': os.environ.get('INCLUDE_IMAGE', 'true').lower() == 'true'
             },
             'post_generation': {
-                'ai_model': os.environ.get('OPENAI_MODEL', 'gpt-4'),
+                'ai_model': os.environ.get('OPENAI_MODEL', 'gpt-4o'),
                 'openai_api_key': openai_api_key,
                 'tone': os.environ.get('POST_TONE', 'professional'),
                 'max_post_length': int(os.environ.get('MAX_POST_LENGTH', '3000')),

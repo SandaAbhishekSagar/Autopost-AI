@@ -11,5 +11,5 @@ cmds = [
 cmds = ["echo 'Build complete'"]
 
 [start]
-cmd = "/opt/venv/bin/python3 app.py"
+cmd = "/opt/venv/bin/gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 app:app"
 

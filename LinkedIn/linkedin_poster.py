@@ -329,6 +329,24 @@ class LinkedInPoster:
                 headers=headers,
                 timeout=10
             )
+
+            # 401 usually means your token is missing, expired, or does not match the app/scopes.
+            if response.status_code == 401:
+                logger.error(
+                    "LinkedIn 401 Unauthorized from /v2/userinfo. "
+                    "Your LINKEDIN_ACCESS_TOKEN is likely expired/invalid or lacks required scopes. "
+                    "Make sure you generated a user access token with scopes: w_member_social openid profile."
+                )
+                logger.error(f"LinkedIn response body: {response.text[:500]}")
+                return None
+            if response.status_code == 403:
+                logger.error(
+                    "LinkedIn 403 Forbidden from /v2/userinfo. "
+                    "Your token may be valid but missing permissions/scopes or the app is not approved."
+                )
+                logger.error(f"LinkedIn response body: {response.text[:500]}")
+                return None
+
             response.raise_for_status()
             user_info = response.json()
             sub = user_info.get('sub')

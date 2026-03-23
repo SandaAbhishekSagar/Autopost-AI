@@ -46,11 +46,15 @@ class LinkedInAIAgent:
         else:
             logger.info("Single article mode - generating posts from individual articles")
 
-        if NEWS_SCORER_AVAILABLE:
+        # Blog mode should not use NewsScorer heuristics (they are tuned for tech news,
+        # and will often score your blog posts as low/zero, triggering min score filters).
+        if NEWS_SCORER_AVAILABLE and news_config.get('fetch_method') != 'blog':
             self.news_scorer = NewsScorer()
             logger.info("News value scoring enabled")
         else:
             self.news_scorer = None
+            if news_config.get('fetch_method') == 'blog':
+                logger.info("Blog mode: value scoring disabled")
 
     def _load_config(self, config_path: str) -> Dict:
         """Load configuration from YAML file or environment variables"""

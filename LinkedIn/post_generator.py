@@ -172,14 +172,14 @@ class PostGenerator:
         role_line = self.profile.get('title') or self.profile.get('current_role') or 'AI Engineer and educator'
         system_prompt = (
             f"You are a personal brand content strategist and LinkedIn ghostwriter for {author_name}, "
-            f"whose professional positioning is: {role_line}. Your goal is to write authentic, knowledgeable LinkedIn posts "
-            "that showcase the author's deep expertise, provide genuine value to the reader, and organically "
-            "invite the audience to connect, follow the blog, and engage. "
-            "Your writing feels like a brilliant colleague sharing hard-won knowledge — not marketing copy. "
-            "You create curiosity, demonstrate credibility, and leave the reader wanting more. "
-            "You use a warm, confident, and intellectually stimulating tone. "
-            "Posts are long-form (900-2000 characters), structured for easy reading with short paragraphs "
-            "and strategic white space, use 3-6 emojis sparingly, and end with a thought-provoking question."
+            f"whose professional positioning is: {role_line}. "
+            "Write blog-promotional LinkedIn posts that are genuinely technical and informative. "
+            "Treat the blog Title + Description as the only source of specific facts. "
+            "If you need to generalize, write it as guidance for the reader (you/teams), not as an expanded narrative about the case-study organization. "
+            "Hard rules: avoid metaphors and avoid actor-focused phrases like 'the firm', 'they', 'the organization', 'overcame', 'turned into a success story'. "
+            "Do NOT add extra actions beyond what the Description explicitly states; if not explicit, rewrite as 'you can'. "
+            "Every post must include concrete implementation details, at least one pitfall/tradeoff, and at least one validation metric/evaluation approach relevant to the tags. "
+            "Use 2-4 emojis total, keep paragraphs short, and end with a specific expert-level question."
         )
 
         try:
@@ -189,13 +189,57 @@ class PostGenerator:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.78,
+                # Very low temperature to keep the writing grounded and deterministic.
+                temperature=0.15,
                 max_tokens=2800,
             )
             post_content = response.choices[0].message.content.strip()
 
             if len(post_content) < 700:
                 logger.warning(f"Blog post too short ({len(post_content)} chars), consider re-generating.")
+
+            # Post-generation quality gate:
+            # For MLOps / AI Deployment themed posts, enforce inclusion of concrete metric/eval terms.
+            tags_lower = [str(t).lower() for t in blog_post.get("tags", []) or []]
+            is_mlops_theme = any("mlops" in t for t in tags_lower) or any("ai deployment" in t for t in tags_lower)
+            if is_mlops_theme:
+                text_l = post_content.lower()
+                missing = []
+                required_metrics = ["latency", "error rate", "drift", "quality score"]
+                for m in required_metrics:
+                    if m not in text_l:
+                        missing.append(m)
+
+                required_gates = ["offline regression checks"]
+                for g in required_gates:
+                    if g not in text_l:
+                        missing.append(g)
+
+                # Allow either exact "shadow/canary" or both words separately.
+                if ("shadow/canary" not in text_l) and not ("shadow" in text_l and "canary" in text_l):
+                    missing.append("shadow/canary")
+
+                if missing:
+                    logger.warning(f"MLOps post missing required terms, rewriting once. Missing: {missing}")
+                    rewrite_instruction = (
+                        "Rewrite the post to be more technical and concrete. "
+                        "You MUST include each missing term verbatim (case-insensitive is ok, but keep the exact wording): "
+                        f"{', '.join(missing)}. "
+                        "Keep it prose-only (no markdown, no bullet points). "
+                        "Avoid metaphors and avoid actor-focused narrative. Use guidance language (you/teams). "
+                        "Avoid filler like 'In my latest blog post' or 'I delve into' — get straight to the technical implementation. "
+                        "Do not add extra URLs."
+                    )
+                    rewrite_response = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": f"{rewrite_instruction}\n\nOriginal post:\n{post_content}"},
+                        ],
+                        temperature=0.12,
+                        max_tokens=2800,
+                    )
+                    post_content = rewrite_response.choices[0].message.content.strip()
 
             # Append blog-specific hashtags if configured, otherwise use defaults
             if self.include_hashtags:
@@ -277,7 +321,8 @@ class PostGenerator:
 
         connect_line = ""
         if linkedin_url:
-            connect_line = f"\n- Invite readers to connect with {author_name} on LinkedIn: {linkedin_url}"
+            # Sentence appended at the end of the CTA; keep it prose (no dash/bullets).
+            connect_line = f" If you want to connect, reach me on LinkedIn: {linkedin_url}."
 
         prompt = f"""Write an engaging, knowledgeable LinkedIn post that promotes this personal blog article written by {author_name}.
 
@@ -292,12 +337,17 @@ Make this post so insightful and valuable that readers immediately want to:
 **CRITICAL: FIRST 2 LINES ARE EVERYTHING**
 LinkedIn only shows the first 2 lines before "...see more". These lines MUST create irresistible curiosity about the blog topic.
 
+**GROUNDING RULES (must follow):**
+- Only use factual details explicitly present in the provided Title and Description. Do NOT infer industries/companies/persons (e.g., "financial firm") unless they are explicitly stated in Description.
+- Do NOT describe outcomes as facts (e.g., "turned hurdles into a triumphant story") unless the Description explicitly says that happened.
+- Prefer phrasing like "the post's takeaway is...", "you can apply this pattern by...", "in practice, teams validate by..." over actor-specific storytelling.
+
 ---
 
 **MANDATORY POST STRUCTURE (output ONLY smooth prose — NO section headers, NO numbers):**
 
 **1. POWERFUL HOOK (EXACTLY 2 LINES — NO markdown, NO bold)**
-- Open with a provocative statement, surprising insight, or bold claim from the blog
+- Open with a concrete engineering observation implied by the Title/Tags (tradeoff, failure mode, or design principle). Avoid metaphors like "minefield", "journey", "stepping stones", and avoid hype like "game"
 - Second line deepens the intrigue or adds a surprising twist
 - Use 1-2 emojis strategically (never in both lines)
 - Make the reader FEEL they will miss something if they scroll past
@@ -316,9 +366,11 @@ LinkedIn only shows the first 2 lines before "...see more". These lines MUST cre
 
 **3. 3-4 KEY INSIGHTS (each as a short punchy paragraph, 2-3 lines each)**
 - Extract the most valuable, non-obvious insights from the blog's title and description
-- Each insight should feel like a mini-revelation — something the reader didn't know or hadn't thought about
-- Ground each insight in real-world AI/ML practice or genuine technical depth
-- Reference specific concepts, techniques, or frameworks relevant to: {tags_str}
+- Each insight must follow this exact pattern in prose: concept tied to {tags_str} → one concrete implementation detail → one pitfall/tradeoff
+- Include a brief validation angle in at least one of the insights (e.g., what to measure/evaluate to know it worked)
+- If {tags_str} includes "MLOps" or "AI Deployment", then across the 3 technical paragraphs you MUST cover, at a practical level: (1) model release gates in a CI/CD pipeline, (2) production monitoring + feedback/iteration loop, and (3) rollback/staged rollout strategy. Use the exact metric TYPES words "latency", "error rate", "drift", "quality score" and the exact evaluation-gate words "offline regression checks" and "shadow/canary" (without inventing numbers).
+- Do NOT invent real-world deployments, companies, or numeric results that are not present in the title/description/tags
+- Write each insight as reader guidance using "you/teams" language only. Never write "the firm", "they", or "the organization did X" unless the Description explicitly includes that specific action.
 - Keep paragraphs to 2-3 lines max for easy scanning
 - Add blank line between each insight
 
@@ -332,7 +384,7 @@ LinkedIn only shows the first 2 lines before "...see more". These lines MUST cre
 **5. CALL-TO-ACTION (3-4 lines)**
 - Invite readers to: read the full article at {url}
 - Invite them to follow the blog for weekly deep-dives on AI/LLMs/ML engineering
-- Warmly invite connections: "If you're building with AI or want to exchange ideas, let's connect"{connect_line}
+- Warmly invite connections: "If you're building with AI or want to exchange ideas, I'd love to connect."{connect_line}
 - Make the CTA feel natural and generous — not pushy or salesy
 - Add blank line after
 
@@ -347,13 +399,14 @@ LinkedIn only shows the first 2 lines before "...see more". These lines MUST cre
 - MINIMUM LENGTH: 900 characters (excluding hashtags) — make it substantial and worth reading
 - TARGET LENGTH: 1200-1800 characters
 - MAXIMUM LENGTH: {self.max_length} characters
-- Emojis: 3-6 total, placed naturally — never clustered together
+- Emojis: 2-4 total, placed naturally — never clustered together
 - Paragraph length: 2-4 lines max — no walls of text
 - White space: blank line between each section for readability
 - NO markdown formatting (LinkedIn shows it as raw text)
 - First person voice throughout ("I wrote", "In my research", "I discovered")
 - Authoritative yet approachable — like a knowledgeable friend, not a corporation
-- Technically substantive — reference real AI/ML concepts, not just buzzwords
+- Technically substantive — reference real AI/ML concepts, and include practical implementation guidance
+- Must include at least one concrete validation metric or evaluation method (no invented numbers)
 - Authentic: avoid phrases like "game-changer", "delve into", "it's important to note"
 
 **BLOG POST INFORMATION:**
